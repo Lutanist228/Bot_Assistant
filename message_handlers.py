@@ -5,6 +5,7 @@ from aiogram.dispatcher import FSMContext
 from sql import db_start, add_message, extract_message
 from additional_functions import file_reader, save_to_txt
 from buttons import get_cancel, get_start
+count = 0
 
 class Question_Processing(StatesGroup):
     question = State()
@@ -35,7 +36,6 @@ async def recieving_message(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Question_Processing.reply)
 async def sending_reply(message: types.Message, state: FSMContext):
-    count = 0
     message_text = await extract_message() 
     # тут будет обработка через отправку сообщения GPT. Затем ответ возвращается,
     # сохраняется и передается в переменную answer.
@@ -44,6 +44,7 @@ async def sending_reply(message: types.Message, state: FSMContext):
         await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=get_start())
         await state.finish()
     else:
+        global count
         count += 1
         await message.reply(text="""В настоящий момент ваш вопрос обрабатывается,\n просим проявить терпение).""")
         yield count
