@@ -1,8 +1,9 @@
 from main import dp, my_bot
 from sql import db_start, add_message, extract_sql_data
-from additional_functions import boltun_file_reader, save_to_txt
+from additional_functions import file_reader, save_to_txt
 from buttons import get_cancel, get_start
 #from GPT_connect import sending_pattern, extracting_reply
+# функции связанные с gpt пока что закомменчены до первых тестов gpt API
 
 from aiogram import types
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -15,7 +16,8 @@ class Question_Processing(StatesGroup): # создаем класс состоя
 async def on_startup(_):
     await db_start()
     # инициализируется база данных при старте бота 
-    GPT_PATTERN = boltun_file_reader()
+    BOLTUN_PATTERN = file_reader("boltun.txt")
+    GPT_PATTERN = file_reader("tips.txt")
     #sending_pattern(role="assistant", gpt_pattern=GPT_PATTERN)
     # sending_pattern отправляет паттерн GPT при старте работы бота 
     print("Pattern has been sent.")
@@ -42,12 +44,14 @@ async def recieving_message(message: types.Message, state: FSMContext):
     await state.set_state("reply")
     #reply_text = extracting_reply(role="assistant", message_text=message.text)
     reply_text = await extract_sql_data()
-    # тут будет обработка через отправку сообщения GPT. Затем ответ возвращается,
+    # тут будет обработка через отправку сообщения GPT (или на первых этапах будет достаточно boltun-а). Затем ответ возвращается,
     # сохраняется и передается в переменную answer. Пока что за reply_text 
     # закреплен текст вопроса пользователя.
     await my_bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}")
 
 @dp.message_handler(content_types=['text'])
+# данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
+# он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
 async def on_reply_processing(message: types.Message, state: FSMContext):
     if message.text == "Завершить процесс":
         await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=get_start())
