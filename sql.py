@@ -20,8 +20,9 @@ async def add_message(message_text, user_id):
     cur.execute("INSERT INTO user_data (question_text, user_id, quarry_date) VALUES(?, ?, datetime('now', '+3 hours'))", (message_text, user_id))
     db.commit()
 
-async def extract_message():
+async def extract_sql_data():
     db = sq.connect("message_db")
     cur = db.cursor()
-    return cur.execute("SELECT question_text FROM user_data WHERE id = 1").fetchone()
+    result = cur.execute("SELECT question_text FROM user_data WHERE id = 1").fetchone()
+    return result
 

@@ -1,26 +1,23 @@
 from main import dp, my_bot
-import asyncio as asy
+from sql import db_start, add_message, extract_sql_data
+from additional_functions import boltun_file_reader, save_to_txt
+from buttons import get_cancel, get_start
+#from GPT_connect import sending_pattern, extracting_reply
+
 from aiogram import types
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
-from sql import db_start, add_message, extract_message
-from additional_functions import file_reader, save_to_txt
-from buttons import get_cancel, get_start
-count = 0
 
-def counter_func(obj: int):
-    obj += 1
-    yield obj
-
-class Question_Processing(StatesGroup):
+class Question_Processing(StatesGroup): # создаем класс состояний для перехода
     question = State()
-    reply = State()
+    reply = State() 
 
 async def on_startup(_):
     await db_start()
-    # добавить функцию которая отправляет gpt паттерны боту, чтобы он потом мог отвечать на вопросы студентов 
-    # данные будут содержаться в GPT_pattern.txt.
-    GPT_PATTERN = file_reader()
+    # инициализируется база данных при старте бота 
+    GPT_PATTERN = boltun_file_reader()
+    #sending_pattern(role="assistant", gpt_pattern=GPT_PATTERN)
+    # sending_pattern отправляет паттерн GPT при старте работы бота 
     print("Pattern has been sent.")
     print("Data base has been created.")
     print("Bot has been turned on.")
@@ -28,33 +25,39 @@ async def on_startup(_):
 @dp.message_handler(commands=["start"])
 async def start_message(message: types.Message, state: FSMContext):
     await message.delete()
-    await my_bot.send_message(chat_id=message.from_user.id, text="Напишите ваш вопрос.")
-    await Question_Processing.question.set()
+    answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
+    await my_bot.send_message(message.chat.id, answer)
+    answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК.\nНапишите свой вопрос.'
+    await my_bot.send_message(message.chat.id, answer)
+    await Question_Processing.question.set() # переход на состояние question
 
 @dp.message_handler(state=Question_Processing.question)
 async def recieving_message(message: types.Message, state: FSMContext):
-    await state.update_data(question=message.text)
-    data = await state.get_data()
+    await state.update_data(question=message.text) 
+    # под ключ question помещается сообщение пользователя
+    data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await add_message(message_text=data, user_id=message.from_user.id)
+    # информация сохраняется в бд
     await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=get_cancel())
     await state.set_state("reply")
-    message_text = await extract_message() 
+    #reply_text = extracting_reply(role="assistant", message_text=message.text)
+    reply_text = await extract_sql_data()
     # тут будет обработка через отправку сообщения GPT. Затем ответ возвращается,
-    # сохраняется и передается в переменную answer.
-    await asy.sleep(60), my_bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{message_text}")
+    # сохраняется и передается в переменную answer. Пока что за reply_text 
+    # закреплен текст вопроса пользователя.
+    await my_bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}")
 
-@dp.message_handler(lambda message: message) 
+@dp.message_handler(content_types=['text'])
 async def on_reply_processing(message: types.Message, state: FSMContext):
     if message.text == "Завершить процесс":
         await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=get_start())
         await state.finish()
     else:
-        global count
-        next(counter_func(count))
-        await message.reply(text="""В настоящий момент ваш вопрос обрабатывается,\n просим проявить терпение).""")
-        await message.delete()
+        answer =  'Для уточнения функциональности бота, нажмите на кнопку "Помощь".'
+        await message.reply(message.chat.id, answer)
     # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
+
 
 
 
