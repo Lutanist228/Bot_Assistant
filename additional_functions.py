@@ -1,5 +1,5 @@
-def boltun_file_reader():
-    with open(file="boltun.txt", mode='r', buffering=-1, encoding="utf-8") as file:
+def file_reader(file_path: str):
+    with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
         pattern_text = file.readlines() ; pattern_text = list(map(lambda x: x.lower().strip(), pattern_text))
         return pattern_text
         
