@@ -2,7 +2,6 @@ from aiocache import caches, SimpleMemoryCache
 
 # Создаем кэш хранилище
 cache = SimpleMemoryCache()
-cache_for_buttons = SimpleMemoryCache()
 
 # Настройки хранилища
 caches.set_config({
@@ -13,3 +12,5 @@ caches.set_config({
         }
     }
 })
+
+
