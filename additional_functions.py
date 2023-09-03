@@ -1,6 +1,8 @@
+from fuzzywuzzy import fuzz
+
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
-        pattern_text = file.readlines() ; pattern_text = list(map(lambda x: x.lower().strip(), pattern_text))
+        pattern_text = file.readlines()
         return pattern_text
         
 def save_to_txt(file_path: str = "", print_as_finished = True, save_mode: str = "a", **kwargs):
@@ -25,6 +27,35 @@ def save_to_txt(file_path: str = "", print_as_finished = True, save_mode: str = 
                 print("\n")
                 print(f"The information has been added to the {file_name}.txt file.")
         
+def fuzzy_handler(boltun_text: list, user_question: str):
+    boltun_text_orig = boltun_text.copy()
+    boltun_text = list(map(lambda x: x.lower(), boltun_text))
 
+    user_question = user_question.lower().strip()
+    current_similarity_rate = 0
+    index = 0
+    max_similarity_rate = 0
+    inline_questions = []
+    for number, phrase in enumerate(boltun_text):
+        if('u: ' in phrase):
+            phrase = phrase.replace('u: ','')
+            current_similarity_rate = (fuzz.token_sort_ratio(phrase, user_question))
+
+            if 50 <= current_similarity_rate <= 80:
+                inline_questions.append(phrase) 
+            elif current_similarity_rate > 80:
+                inline_questions.clear()
+
+            if(max_similarity_rate < current_similarity_rate and max_similarity_rate != current_similarity_rate):
+                max_similarity_rate = current_similarity_rate
+                index = number
+    sample = boltun_text_orig[index + 1]
+
+    if max_similarity_rate < 50:
+        sample = "Not Found"
+
+    return sample, max_similarity_rate, inline_questions     
+
+     
 
 
