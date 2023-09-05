@@ -1,7 +1,7 @@
 from main import dp, my_bot
 from sql import db_start, sql_add_extract_data, sql_update_data
 from additional_functions import file_reader, save_to_txt, fuzzy_handler
-from buttons import get_cancel, get_start
+from buttons import get_start
 from inline_key import Boltun_Keys
 from config_file import GPT_PATTERN, BOLTUN_PATTERN
 from cache_container import cache
@@ -93,16 +93,18 @@ async def on_reply_processing(message: types.Message, state: FSMContext):
     # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
 
-@dp.message_handler(content_types=['text'])
+@dp.message_handler(text = "Завершить процесс", state="*")
+async def quitting(message: types.Message, state: FSMContext):
+    await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=get_start())
+    await state.finish()
+
+
+@dp.message_handler(content_types=['text'], state="*")
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
 # он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
 async def on_reply_processing(message: types.Message, state: FSMContext):
-    if message.text == "Завершить процесс":
-        await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=get_start())
-        await state.finish()
-    else:
-        answer =  'Для уточнения функциональности бота, нажмите на кнопку "Помощь".'
-        await message.reply(text=answer)
+    answer =  'Для уточнения функциональности бота, нажмите на кнопку "Помощь".'
+    await message.reply(text=answer)
     # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
 

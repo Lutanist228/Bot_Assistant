@@ -4,7 +4,7 @@ from inline_key import Boltun_Keys
 from additional_functions import fuzzy_handler
 from config_file import BOLTUN_PATTERN
 from sql import sql_update_data, sql_add_extract_data
-from buttons import get_back
+from buttons import Step_Back
 from message_handlers import Question_Processing, Menu_Storage, cache
 
 from aiogram.dispatcher import FSMContext
@@ -26,7 +26,7 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
 
     await my_bot.send_message(chat_id=callback.from_user.id, 
                               text=f"Ответ:\n{reply_text}", 
-                              reply_markup=get_back())
+                              reply_markup=Step_Back.kb)
     await sql_update_data(
                 data_base_type="fuzzy_db",
                 primary_key_value=callback.from_user.id,

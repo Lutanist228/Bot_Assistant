@@ -3,8 +3,8 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 def get_start() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton("/start"))
 
-def get_cancel() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton("Завершить процесс"))
+class Step_Back:
+    close_status = KeyboardButton("Завершить процесс")
+    back_to_menu = KeyboardButton("Вернуться к выбору")
+    kb = ReplyKeyboardMarkup(resize_keyboard=True).add(close_status, back_to_menu)
 
-def get_back() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton("Вернуться к выбору"))
