@@ -9,7 +9,7 @@ class Boltun_Keys:
         key_dict = {}
 
         for i, var in enumerate(list_of_names):
-            key_dict.update([(var, InlineKeyboardButton(text=var,callback_data=Boltun_Keys.cd.new(f"question_{user_id}_{i}")))])
+            key_dict.update([(var, InlineKeyboardButton(text=f"Вопрос №{i + 1}",callback_data=Boltun_Keys.cd.new(f"question_{user_id}_{i}")))])
 
         keyboard.add(*[value for value in key_dict.values()])
         return keyboard

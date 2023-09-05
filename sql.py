@@ -30,7 +30,9 @@ async def db_start():
 async def sql_add_extract_data(data_base_type, message_text, user_id):
     db = sq.connect("message_db")
     cur = db.cursor()
-    message_text = message_text.get("question")
+
+    if isinstance(message_text, str) == False:
+        message_text = message_text.get("question")
 
     cur.execute(f"INSERT INTO {data_base_type} (question_text, user_id, quarry_date) VALUES(?, ?, datetime('now', '+3 hours'))", (message_text, user_id))
     db.commit()
@@ -46,10 +48,12 @@ async def sql_update_data(data_base_type: str, primary_key_value: int, bot_reply
     bot_reply = bot_reply.lower().strip()
 
     if data_base_type == "gpt_db":
-        cur.execute(f"UPDATE gpt_db SET question_status = {question_status},  reply_text = {bot_reply}, reply_received = {reply_status} WHERE id = {primary_key_value}")
+        cur.execute("""UPDATE fuzzy_db SET similarity_rate = ?, reply_text = ?, reply_received = ? WHERE id = ?""",
+            (similarity_rate, bot_reply, reply_status, primary_key_value))        
         db.commit()        
     elif data_base_type == "fuzzy_db":
-        cur.execute(f"""UPDATE fuzzy_db SET similarity_rate = {similarity_rate}, reply_text = {bot_reply}, reply_received = {reply_status} WHERE id = {primary_key_value}""")
+        cur.execute("""UPDATE fuzzy_db SET similarity_rate = ?, reply_text = ?, reply_received = ? WHERE id = ?""",
+            (similarity_rate, bot_reply, reply_status, primary_key_value))
         db.commit()
 
 

@@ -3,19 +3,23 @@ from sql import db_start, sql_add_extract_data, sql_update_data
 from additional_functions import file_reader, save_to_txt, fuzzy_handler
 from buttons import get_cancel, get_start
 from inline_key import Boltun_Keys
+from config_file import GPT_PATTERN, BOLTUN_PATTERN
+from cache_container import cache
 #from GPT_connect import sending_pattern, extracting_reply
 # функции связанные с gpt пока что закомменчены до первых тестов gpt API
 
 from aiogram import types
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
+import json
 
-BOLTUN_PATTERN = file_reader("boltun.txt")
-GPT_PATTERN = file_reader("tips.txt")
+class Menu_Storage():
+    temp_inf = 0
 
 class Question_Processing(StatesGroup): # создаем класс состояний для перехода
     boltun_question = State()
-    boltun_reply = State() 
+    boltun_reply = State()
+    boltun_back_to_menu = State() 
     gpt_question = State()
 
 async def on_startup(_):
@@ -52,7 +56,13 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
     # закреплен текст вопроса пользователя.
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 80: 
-            await my_bot.send_message(chat_id=message.from_user.id, text=f"Возможно вы имели в виду:\n", reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
+            serialized_question_menu_data = json.dumps(list_of_questions)
+            await cache.set(message.message_id, serialized_question_menu_data)
+            Menu_Storage.temp_inf = message.message_id
+            gen_text = [f"""Вопрос №{num + 1}: {value}\n""" for num, value in enumerate(list_of_questions)] ; gen_text = ''.join(gen_text)
+            await my_bot.send_message(chat_id=message.from_user.id, 
+                                      text=f"Возможно вы имели в виду:\n\n{gen_text}",
+                                      reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
         else:
             await my_bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}")
             message_id = await sql_add_extract_data(data_base_type="fuzzy_db", message_text=data, user_id=message.from_user.id) ; message_id = message_id[0]
@@ -66,6 +76,22 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await state.finish()
     else:
         await Question_Processing.gpt_question.set()
+
+@dp.message_handler(text = "Вернуться к выбору", state="*")
+# данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
+# он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
+async def on_reply_processing(message: types.Message, state: FSMContext):
+    data = await cache.get(Menu_Storage.temp_inf)
+    if data:
+            keyboard_data = json.loads(data)
+    serialized_question_menu_data = json.dumps(keyboard_data)
+    await cache.set(message.message_id, serialized_question_menu_data)
+    Menu_Storage.temp_inf = message.message_id
+
+    gen_text = [f"""Вопрос №{num + 1}: {value}\n""" for num, value in enumerate(keyboard_data)] ; gen_text = ''.join(gen_text)  
+    await my_bot.send_message(chat_id=message.from_user.id, text=gen_text, reply_markup=Boltun_Keys.get_keyboard(list_of_names=keyboard_data, user_id=message.from_user.id))
+    # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
+    # необходимо поставить антифлуд на данный хендлер через MiddleWare
 
 @dp.message_handler(content_types=['text'])
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
