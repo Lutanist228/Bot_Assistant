@@ -1,12 +1,12 @@
 import openai
 import aiofiles
 
-from config import OPEN_AI_API
+from config_file import OPEN_AI_API
 
 openai.api_key = OPEN_AI_API
 
 async def start_data():
-    async with aiofiles.open('boltun.txt', encoding='utf8') as f:
+    async with aiofiles.open('gpt_pattern.txt', encoding='utf8') as f:
         lines = await f.read()
         return lines
         
