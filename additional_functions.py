@@ -1,4 +1,8 @@
+from cache_container import cache
+
 from fuzzywuzzy import fuzz
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import json
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -41,9 +45,9 @@ def fuzzy_handler(boltun_text: list, user_question: str):
             phrase = phrase.replace('u: ','')
             current_similarity_rate = (fuzz.token_sort_ratio(phrase, user_question))
 
-            if 50 <= current_similarity_rate <= 80:
+            if 50 <= current_similarity_rate <= 90:
                 inline_questions.append(phrase) 
-            elif current_similarity_rate > 80:
+            elif current_similarity_rate > 90:
                 inline_questions.clear()
 
             if(max_similarity_rate < current_similarity_rate and max_similarity_rate != current_similarity_rate):
@@ -56,6 +60,32 @@ def fuzzy_handler(boltun_text: list, user_question: str):
 
     return sample, max_similarity_rate, inline_questions     
 
-     
+async def create_inline_keyboard(rows):
+    questions_keyboard = InlineKeyboardMarkup(row_width=3)
+    buttons = []
+
+    for row in rows:
+        question_id = str(row[0])
+        username = row[2]
+        question = row[3]
+        gpt_answer = row[4]
+        data = {'username': username,
+                'question': question,
+                'Ответа бота': gpt_answer}
+        # Переводим данные в json формат
+        serialized_data = json.dumps(data)
+
+        # Сохраняем в кэш память
+        await cache.set(question_id, serialized_data)
+        button = InlineKeyboardButton(text=f'Вопрос {question_id}', callback_data=f'question:{question_id}')
+        
+        buttons.append(button)
+    # Разбиваем на столбцы
+    button_lists = [buttons[i:i + 3] for i in range(0, len(buttons), 3)]
+
+    for button_list in button_lists:
+        questions_keyboard.add(*button_list)
+
+    return questions_keyboard
 
 

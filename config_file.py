@@ -5,5 +5,4 @@ BOT_LINK = r""
 OLD_BOT_LINK = r"t.me/sech_ck_bot"
 OLD_API_TOKEN = "6513149720:AAFrvCIrtueupRKpgJSL4xrTfD2iQ91DW2M"
 BOLTUN_PATTERN = file_reader("boltun.txt")
-GPT_PATTERN = file_reader("tips.txt")
-
+OPEN_AI_API = "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"
