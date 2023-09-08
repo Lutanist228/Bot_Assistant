@@ -3,7 +3,6 @@ from aiogram import types
 from keyboards import Boltun_Step_Back, Boltun_Keys
 from additional_functions import fuzzy_handler
 from config_file import BOLTUN_PATTERN
-from db_actions import Database
 from additional_functions import create_inline_keyboard
 from message_handlers import Answer, db, Boltun_Question_Processing, Global_Data_Storage, cache
 from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard
@@ -31,13 +30,14 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
         reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=keyboard_data[cb_data])
     await bot.send_message(chat_id=callback.from_user.id, 
                               text=f"Ответ:\n{reply_text}", 
-                              reply_markup=Boltun_Step_Back.kb)
+                              reply_markup=Boltun_Step_Back.kb_3)
     await db.update_fuzzy_data(
         primary_key_value=message_id,
         bot_reply=reply_text,
         reply_status='TRUE',
         similarity_rate=similarity_rate
         )
+    await Boltun_Question_Processing.boltun_reply.set()
     
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery):

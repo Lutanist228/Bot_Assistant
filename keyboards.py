@@ -14,7 +14,8 @@ class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
     back_to_menu = KeyboardButton("Вернуться к выбору")
     not_satisfied = KeyboardButton("Меня не устроил ответ")
-    kb = ReplyKeyboardMarkup(resize_keyboard=True).add(close_status, back_to_menu, not_satisfied)
+    kb_3 = ReplyKeyboardMarkup(resize_keyboard=True).add(close_status, back_to_menu, not_satisfied)
+    kb_1 = ReplyKeyboardMarkup(resize_keyboard=True).add(not_satisfied)
 
 class Boltun_Keys:
     cd = CallbackData("bolt_questions", "action")

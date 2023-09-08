@@ -29,7 +29,8 @@ class Database:
                 question_text TEXT NULL,
                 reply_text TEXT NULL,
                 similarity_rate INTEGER DEFAULT 0,
-                reply_received TEXT NOT NULL DEFAULT 'FALSE'
+                reply_received TEXT NOT NULL DEFAULT 'FALSE',
+                gpt_answer TEXT DEFAULT NULL
                 )""")
                 
     async def add_question(self, user_id: int, user_name:str, question: str, data_base_type: str = "admin_questions"):
@@ -70,12 +71,19 @@ class Database:
                                                              moder_name, question_id)):
             await self.connection.commit()
 
-    async def update_gpt_answer(self, question_id: int, answer: str):
-        if self.connection is None:
-            await self.create_connection()
-        async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
-                                           WHERE id = ?''', (answer, question_id)):
-            await self.connection.commit()
+    async def update_gpt_answer(self, question_id: int, answer: str, data_base_type: str = "admin_questions"):
+        if data_base_type == "admin_questions":
+            if self.connection is None:
+                await self.create_connection()
+            async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
+                                            WHERE id = ?''', (answer, question_id)):
+                await self.connection.commit()
+        else:
+            if self.connection is None:
+                await self.create_connection()
+            async with self.connection.execute('''UPDATE fuzzy_db SET gpt_answer = ?
+                                            WHERE id = ?''', (answer, question_id)):
+                await self.connection.commit()
 
     async def get_user_id(self, question_id):
         if self.connection is None:
@@ -92,14 +100,23 @@ class Database:
             rows = await cursor.fetchall()
             return rows
         
-    async def get_question(self, question_id: int):
-        async with self.connection.execute('SELECT user_id, question, answer FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
-            row = await cursor.fetchone()
-            if row is not None:
-                user_id, question, answer = row
-                return {'user_id': user_id, 'question': question, 'answer': answer}
-            else:
-                return None
+    async def get_question(self, question_id: int, data_base_type: str = "admin_questions"):
+        if data_base_type == "admin_questions":
+            async with self.connection.execute('SELECT user_id, question, answer FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row is not None:
+                    user_id, question, answer = row
+                    return {'user_id': user_id, 'question': question, 'answer': answer}
+                else:
+                    return None
+        else:
+            async with self.connection.execute('SELECT user_id, question_text, reply_text FROM fuzzy_db WHERE id = ?', (question_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row is not None:
+                    user_id, question, answer = row
+                    return {'user_id': user_id, 'question_text': question, 'reply_text': answer}
+                else:
+                    return None
             
     async def delete_question(self, question_id: int):
         async with self.connection.execute('DELETE FROM admin_questions WHERE id = ?', (question_id,)):
@@ -119,6 +136,13 @@ class Database:
         async with self.connection.execute('SELECT * FROM admin_questions WHERE answer IS NULL') as cursor:
             rows = await cursor.fetchall()
             return len(rows)
+
+    async def get_fuzzy_id(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT id FROM fuzzy_db ORDER BY id DESC LIMIT 1') as cursor:
+            row = await cursor.fetchone()
+            return row
 
     async def update_fuzzy_data(self, primary_key_value: int, bot_reply: str, reply_status: str, similarity_rate = 0):
         if self.connection is None:

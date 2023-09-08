@@ -60,7 +60,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                       text=f"Возможно вы имели в виду:\n\n{gen_text}",
                                       reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
         else:
-            await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}")
+            await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_1)
             message_id = await db.add_question(data_base_type="fuzzy_db", 
                                                question=data, 
                                                user_id=message.from_user.id, 
@@ -71,9 +71,48 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 reply_status='TRUE',
                 similarity_rate=similarity_rate
                 )
-            await state.finish()
+            await Boltun_Question_Processing.boltun_reply.set()
     else:
         await Answer.making_question.set()
+
+
+@dp.message_handler(state=Answer.making_question)
+async def process_question_button(message: types.Message, state: FSMContext):
+    question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
+    answer = await answer_information(message.text)
+    await db.update_gpt_answer(question_id=question_id, answer=answer)
+    await bot.send_message(MODER_CHAT_ID, 'Добавлен новый вопрос')
+    await message.reply('Вопрос был передан')
+
+@dp.message_handler(text = "Вернуться к выбору", state=Boltun_Question_Processing.boltun_reply)
+# данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
+# он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
+async def on_reply_processing(message: types.Message):
+    data = await cache.get(Global_Data_Storage.menu_temp_inf)
+    if data:
+            keyboard_data = json.loads(data)
+    serialized_question_menu_data = json.dumps(keyboard_data)
+    await cache.set(message.message_id, serialized_question_menu_data)
+    Global_Data_Storage.menu_temp_inf = message.message_id
+
+    gen_text = [f"""Вопрос №{num + 1}: {value}\n""" for num, value in enumerate(keyboard_data)] ; gen_text = ''.join(gen_text)  
+    await bot.send_message(chat_id=message.from_user.id, text=gen_text, reply_markup=Boltun_Keys.get_keyboard(list_of_names=keyboard_data, user_id=message.from_user.id))
+    # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
+    # необходимо поставить антифлуд на данный хендлер через MiddleWare
+
+@dp.message_handler(text = "Завершить процесс", state=Boltun_Question_Processing.boltun_reply)
+async def quitting(message: types.Message, state: FSMContext):
+    await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
+    await state.finish()
+
+@dp.message_handler(text = "Меня не устроил ответ", state=Boltun_Question_Processing.boltun_reply)
+async def quitting(message: types.Message, state: FSMContext):
+    question_id_extract = await db.get_fuzzy_id() ; question_id_extract = question_id_extract[0]
+    question_extract = await db.get_question(question_id=question_id_extract, data_base_type="fuzzy_db")
+    answer = await answer_information(question_extract.get("question"))
+    await db.update_gpt_answer(question_id=question_id_extract, answer=answer)
+    await bot.send_message(MODER_CHAT_ID, 'Добавлен новый вопрос')
+    await message.reply('Вопрос был передан')
 
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):
@@ -97,14 +136,6 @@ async def process_answer_command(message: types.Message, state: FSMContext):
     else:
         await message.answer('Нет вопросов')
 
-@dp.message_handler(state=Answer.making_question)
-async def process_question_button(message: types.Message, state: FSMContext):
-    question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
-    answer = await answer_information(message.text)
-    await db.update_gpt_answer(question_id=question_id, answer=answer)
-    await bot.send_message(MODER_CHAT_ID, 'Добавлен новый вопрос')
-    await message.reply('Вопрос был передан')
-
 @dp.message_handler(state=Answer.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
     moder_id = message.from_user.id
@@ -116,29 +147,3 @@ async def process_answer(message: types.Message, state: FSMContext):
     await message.reply('Ответ отправлен')
     await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}')
     await state.finish()
-
-@dp.message_handler(text = "Вернуться к выбору", state="*")
-# данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
-# он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
-async def on_reply_processing(message: types.Message):
-    data = await cache.get(Global_Data_Storage.menu_temp_inf)
-    if data:
-            keyboard_data = json.loads(data)
-    serialized_question_menu_data = json.dumps(keyboard_data)
-    await cache.set(message.message_id, serialized_question_menu_data)
-    Global_Data_Storage.menu_temp_inf = message.message_id
-
-    gen_text = [f"""Вопрос №{num + 1}: {value}\n""" for num, value in enumerate(keyboard_data)] ; gen_text = ''.join(gen_text)  
-    await bot.send_message(chat_id=message.from_user.id, text=gen_text, reply_markup=Boltun_Keys.get_keyboard(list_of_names=keyboard_data, user_id=message.from_user.id))
-    # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
-    # необходимо поставить антифлуд на данный хендлер через MiddleWare
-
-@dp.message_handler(text = "Завершить процесс", state="*")
-async def quitting(message: types.Message, state: FSMContext):
-    await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
-    await state.finish()
-
-@dp.message_handler(text = "Меня не устроил ответ", state="*")
-async def quitting(message: types.Message):
-    await message.reply("Пожалуйста, подождите - вопрос в данный момент обрабатывается ботом.", reply_markup=user_keyboard)
-    await Answer.making_question.set()
