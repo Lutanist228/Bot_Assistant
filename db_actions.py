@@ -22,6 +22,7 @@ class Database:
                                answer TEXT DEFAULT NULL,
                                moder_id INTEGER,
                                moder_name TEXT)''')
+            
             await conn.execute("""CREATE TABLE IF NOT EXISTS fuzzy_db (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -29,22 +30,39 @@ class Database:
                 question_text TEXT NULL,
                 reply_text TEXT NULL,
                 similarity_rate INTEGER DEFAULT 0,
-                reply_received TEXT NOT NULL DEFAULT 'FALSE',
-                gpt_answer TEXT DEFAULT NULL
+                reply_received TEXT NOT NULL DEFAULT 'FALSE'
                 )""")
-                
+            
+    async def create_infromation_about_moder(self):
+        async with aiosqlite.connect('database.db') as conn:
+            await conn.execute('''CREATE TABLE IF NOT EXISTS moder_information
+                                           (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                           moder_id INTEGER,
+                                           moder_name TEXT,
+                                           role TEXT,
+                                           number_of_answered_questions INTEGER)''')
+            await conn.commit()
+            async with conn.execute('SELECT moder_id FROM moder_information') as cursor:
+                check = await cursor.fetchall()
+            if len(check) == 0:
+                moder_infromation = {'Егор': 869012176,
+                            'Александр': 6231172367}
+                for moder_name, moder_id in moder_infromation.items():
+                    await conn.execute('INSERT INTO moder_information (moder_id, moder_name, role) VALUES (?, ?, ?)', 
+                                       (moder_id, moder_name, 'Owner'))
+                await conn.commit()
+                       
     async def add_question(self, user_id: int, user_name:str, question: str, data_base_type: str = "admin_questions"):
-        if isinstance(question, str) == False:
-            question = question.get("question")
-
         if self.connection is None:
             await self.create_connection()
         if data_base_type == "admin_questions":    
-            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, question) VALUES (?, ?, ?)', (user_id, user_name, question)) as cursor:
+            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, question) VALUES (?, ?, ?)', 
+                                               (user_id, user_name, question)) as cursor:
                     question_id = cursor.lastrowid
                     await self.connection.commit()
         elif data_base_type == "fuzzy_db":
-            async with self.connection.execute(f"INSERT INTO fuzzy_db (question_text, user_id, quarry_date) VALUES(?, ?, datetime('now', '+3 hours'))", (question, user_id)) as cursor:
+            async with self.connection.execute(f"INSERT INTO fuzzy_db (question_text, user_id, quarry_date) VALUES(?, ?, datetime('now', '+3 hours'))", 
+                                               (question, user_id)) as cursor:
                 question_id = cursor.lastrowid
                 await self.connection.commit()
         return question_id
@@ -71,19 +89,20 @@ class Database:
                                                              moder_name, question_id)):
             await self.connection.commit()
 
-    async def update_gpt_answer(self, question_id: int, answer: str, data_base_type: str = "admin_questions"):
-        if data_base_type == "admin_questions":
-            if self.connection is None:
-                await self.create_connection()
-            async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
-                                            WHERE id = ?''', (answer, question_id)):
-                await self.connection.commit()
-        else:
-            if self.connection is None:
-                await self.create_connection()
-            async with self.connection.execute('''UPDATE fuzzy_db SET gpt_answer = ?
-                                            WHERE id = ?''', (answer, question_id)):
-                await self.connection.commit()
+    async def update_gpt_answer(self, question_id: int, answer: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
+                                        WHERE id = ?''', (answer, question_id)):
+            await self.connection.commit()
+            
+        # Нет смысла траты на эти вопросы токенов
+        # else:
+        #     if self.connection is None:
+        #         await self.create_connection()
+        #     async with self.connection.execute('''UPDATE fuzzy_db SET gpt_answer = ?
+        #                                     WHERE id = ?''', (answer, question_id)):
+        #         await self.connection.commit()
 
     async def get_user_id(self, question_id):
         if self.connection is None:
@@ -137,10 +156,10 @@ class Database:
             rows = await cursor.fetchall()
             return len(rows)
 
-    async def get_fuzzy_id(self):
+    async def get_fuzzy_id(self, user_id: int):
         if self.connection is None:
             await self.create_connection()
-        async with self.connection.execute('SELECT id FROM fuzzy_db ORDER BY id DESC LIMIT 1') as cursor:
+        async with self.connection.execute('SELECT question_text FROM fuzzy_db WHERE user_id = ? ORDER BY id DESC LIMIT 1', (user_id,)) as cursor:
             row = await cursor.fetchone()
             return row
 
@@ -152,3 +171,23 @@ class Database:
         async with self.connection.execute("""UPDATE fuzzy_db SET similarity_rate = ?, reply_text = ?, reply_received = ? WHERE id = ?""",
                 (similarity_rate, bot_reply, reply_status, primary_key_value)):
             await self.connection.commit()  
+
+    async def get_moder(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT moder_id, role FROM moder_information') as cursor:
+            result = await cursor.fetchall()
+            return result
+        
+    async def add_new_moder(self, moder_id: int, moder_name: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('INSERT INTO moder_information (moder_id, moder_name) VALUES (?, ?)', 
+                                           (moder_id, moder_name)):
+            await self.connection.commit()
+
+    async def delete_moder(self, moder_id: int):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('DELETE FROM moder_information WHERE moder_id = ?', (moder_id,)):
+            await self.connection.commit()

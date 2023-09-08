@@ -5,7 +5,7 @@ from additional_functions import fuzzy_handler
 from config_file import BOLTUN_PATTERN
 from additional_functions import create_inline_keyboard
 from message_handlers import Answer, db, Boltun_Question_Processing, Global_Data_Storage, cache
-from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard
+from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
 
 from aiogram.dispatcher import FSMContext
 import json
@@ -38,25 +38,53 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
         similarity_rate=similarity_rate
         )
     await Boltun_Question_Processing.boltun_reply.set()
-    
+
+@dp.callback_query_handler(Text('glavnoe_menu'), state='*')
+async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
+    # Обработка возврата в главное меню для всех
+    user_id = callback.from_user.id
+    moder_ids = await db.get_moder()
+    await state.finish()
+    for id in moder_ids:
+        if user_id == id[0]:
+            if id[1] == 'Owner':
+                await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+            else:
+                await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_start_keyboard)
+            return
+    await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
+
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery):
     if callback.data == 'instruction':
+        # Нужно будет написать инстуркцию
         await callback.message.answer('Инструкция')
     elif callback.data == 'make_question':
-        await callback.message.edit_text('Задайте свой вопрос')
+        # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
+        await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
         await Boltun_Question_Processing.boltun_question.set()
     elif callback.data == 'number_unanswered':
+        # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
         number = await db.get_number_of_unanswered_questions()
         await callback.message.answer(f'Количество вопросов без ответа: {number}')
     elif callback.data == 'answer_question':
+        # Обработка нажатия модера для показа вопросов (Вопрос номер ...). И создание на основе информации из бд клавиатуры для этих вопросов
         result = await db.get_list_of_unaswered_questions()
         keyboard = await create_inline_keyboard(result)
         await callback.message.edit_text('Просмотрите и выберите вопрос', reply_markup=keyboard)
         await Answer.choosing_answer.set()
+    elif callback.data == 'add_moder':
+        # Добавить модера, надо сделать проверку, что именно айди и имя через пробел и т д
+        await callback.message.edit_text('Введите id и имя модератора через пробел')
+        await Answer.add_moder.set()
+    elif callback.data == 'delete_moder':
+        # Удаление модера
+        await callback.message.edit_text('Введите id модера')
+        await Answer.delete_moder.set()
 
 @dp.callback_query_handler(Text('back'), state=Answer.choosing_answer)
 async def back_process(callback: types.CallbackQuery, state: FSMContext):
+    # Обработка возвращения назад
     if callback.data == 'back':
         await state.finish()
         result = await db.get_list_of_unaswered_questions()
@@ -66,9 +94,11 @@ async def back_process(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(state=Answer.choosing_answer)
 async def process_choosing_answer(callback: types.CallbackQuery, state: FSMContext):
+    # Обработка и вывод информации по клику на определенный вопрос
     if 'question' in callback.data:
         callback_data = callback.data.split(':')[1]
         from additional_functions import cache
+        # Получаем информацию по определенному вопросу и выводим
         data = await cache.get(callback_data)
         information = json.loads(data)
         result = ''
@@ -76,7 +106,9 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
             result += f'{key}: {value}\n'
         await state.update_data(question_id=callback_data)
         await callback.message.edit_text(result, reply_markup=moder_choose_question_keyboard)
+    # Обработка выбора определенного вопроса
     elif callback.data == 'choose_answer':
-        await callback.message.edit_text('Напишите свой ответ')
+        await callback.message.answer('Напишите свой ответ или скопируйте ответа бота, если считаете его правильным', 
+                                      reply_markup=glavnoe_menu_keyboard)
         await Answer.waiting_for_answer.set()
         

@@ -6,12 +6,12 @@ from config_file import OPEN_AI_API
 openai.api_key = OPEN_AI_API
 
 async def start_data():
-    async with aiofiles.open('gpt_pattern.txt', encoding='utf8') as f:
+    async with aiofiles.open('chat_gpt.txt', encoding='utf8') as f:
         lines = await f.read()
         return lines
         
 async def answer_information(question = None):
-
+    print(question)
     data = await start_data()
     messages = [{'role': 'system', 'content': f'''Remember the following information and give answers based on it. You are given data that contains possible questions after 
                  "Question:" and possible answers to them after "Answer:".\n{data}'''}]

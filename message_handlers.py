@@ -5,8 +5,8 @@ from aiogram.dispatcher.filters import Text
 import json
 
 from db_actions import Database
-from main import dp, bot, MODER_CHAT_ID
-from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard
+from main import dp, bot
+from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
 from Chat_gpt_module import answer_information
 from keyboards import Boltun_Step_Back
@@ -19,6 +19,8 @@ class Answer(StatesGroup):
     waiting_for_answer = State()
     making_question = State()
     choosing_answer = State()
+    add_moder = State()
+    delete_moder = State()
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -31,16 +33,21 @@ class Boltun_Question_Processing(StatesGroup):
 
 @dp.message_handler(commands=['start'])
 async def process_start_message(message: types.Message):
-    if str(message.from_user.id) == MODER_CHAT_ID:
-        await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
-    else:
-        await message.delete()
-        answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
-        await bot.send_message(message.chat.id, answer)
-        answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК Сеченовского университета.\nНапишите свой вопрос.'
-        await bot.send_message(message.chat.id, answer)
-        await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
-        await answer_information()
+# Достаем айдишники модеров, чтобы проверить пользователя кем он является
+    moder_ids = await db.get_moder()
+    for id in moder_ids:
+        if message.from_user.id == id[0]:
+            # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
+            if id[1] == 'Owner':
+                await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+            else:
+                await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
+            return
+    await message.delete()
+    await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+    # Перенести в стартовое окно
+        # answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
+        # answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК Сеченовского университета.\nНапишите свой вопрос.'
 
 @dp.message_handler(state=Boltun_Question_Processing.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
@@ -48,7 +55,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
     await state.update_data(question=message.text) 
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await message.answer(text="Отлично, а теперь дождитесь ответа бота!")
-    await state.set_state("boltun_reply")
+    await Boltun_Question_Processing.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90: 
@@ -61,8 +68,9 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                       reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
         else:
             await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_1)
+            question = data.get('question')
             message_id = await db.add_question(data_base_type="fuzzy_db", 
-                                               question=data, 
+                                               question=question, 
                                                user_id=message.from_user.id, 
                                                user_name=message.from_user.full_name)
             await db.update_fuzzy_data(
@@ -74,15 +82,6 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await Boltun_Question_Processing.boltun_reply.set()
     else:
         await Answer.making_question.set()
-
-
-@dp.message_handler(state=Answer.making_question)
-async def process_question_button(message: types.Message, state: FSMContext):
-    question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
-    answer = await answer_information(message.text)
-    await db.update_gpt_answer(question_id=question_id, answer=answer)
-    await bot.send_message(MODER_CHAT_ID, 'Добавлен новый вопрос')
-    await message.reply('Вопрос был передан')
 
 @dp.message_handler(text = "Вернуться к выбору", state=Boltun_Question_Processing.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
@@ -107,43 +106,79 @@ async def quitting(message: types.Message, state: FSMContext):
 
 @dp.message_handler(text = "Меня не устроил ответ", state=Boltun_Question_Processing.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
-    question_id_extract = await db.get_fuzzy_id() ; question_id_extract = question_id_extract[0]
-    question_extract = await db.get_question(question_id=question_id_extract, data_base_type="fuzzy_db")
-    answer = await answer_information(question_extract.get("question"))
-    await db.update_gpt_answer(question_id=question_id_extract, answer=answer)
-    await bot.send_message(MODER_CHAT_ID, 'Добавлен новый вопрос')
+    user_id = message.from_user.id
+    question = await db.get_fuzzy_id(user_id=user_id)
+    # В это строке нет смысла, как и в переделке функции get_question. Так как ты ее только здесь используешь
+    # И можешь сразу ловить вопрос
+    # question_extract = await db.get_question(question_id=question_id_extract, data_base_type="fuzzy_db")
+# Поменял здесь блок кода
+    user_name = message.from_user.full_name
+    question_id = await db.add_question(user_id=user_id, user_name=user_name, question=question[0])
+    answer = await answer_information(question[0])
+    await db.update_gpt_answer(question_id=question_id, answer=answer)
     await message.reply('Вопрос был передан')
 
-@dp.message_handler(commands=['question'])
-async def process_question_command(message: types.Message):
-    if len(message.text) > 10:
-        question = message.text.split('/question')[-1]
-        await db.add_question(message.from_user.id, message.text)
-        await bot.send_message(MODER_CHAT_ID,
-                               f'Вопрос от {message.from_user.full_name}: {question}')
-        await message.reply('Вопрос был передан')
-    else:
-        await message.answer('Неверный формат')
+# @dp.message_handler(commands=['question'])
+# async def process_question_command(message: types.Message):
+#     if len(message.text) > 10:
+#         question = message.text.split('/question')[-1]
+#         await db.add_question(message.from_user.id, message.text)
+#         # await bot.send_message(MODER_CHAT_ID,
+#          #                      f'Вопрос от {message.from_user.full_name}: {question}')
+#         await message.reply('Вопрос был передан')
+#     else:
+#         await message.answer('Неверный формат')
 
-@dp.message_handler(commands=['answer'], user_id=MODER_CHAT_ID, state='*')
-async def process_answer_command(message: types.Message, state: FSMContext):
-    questions = await db.get_unaswered_questions()
-    if len(questions) > 0:
-        question = questions[0]
-        await message.answer(f'Вопрос: {question[1]}:\n\n{question[2]}')
-        await Answer.waiting_for_answer.set()
-        await state.update_data(question_id=question[0], user_id=question[1])
-    else:
-        await message.answer('Нет вопросов')
+# @dp.message_handler(commands=['answer'], user_id=MODER_CHAT_ID, state='*')
+# async def process_answer_command(message: types.Message, state: FSMContext):
+#     questions = await db.get_unaswered_questions()
+#     if len(questions) > 0:
+#         question = questions[0]
+#         await message.answer(f'Вопрос: {question[1]}:\n\n{question[2]}')
+#         await Answer.waiting_for_answer.set()
+#         await state.update_data(question_id=question[0], user_id=question[1])
+#     else:
+#         await message.answer('Нет вопросов')
 
 @dp.message_handler(state=Answer.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
+    # Получаем айди и имя модера, чтобы сохранить в бд
     moder_id = message.from_user.id
     moder_name = message.from_user.full_name
+    # Достаем айди вопроса, в котором должны обновить информацию/ответ
     data = await state.get_data()
     question_id = data.get('question_id')
+    # Из бд получаем айди пользователя, чтобы отправить ему ответ
     user_id = await db.get_user_id(question_id)
     await db.update_question_id(question_id, message.text, moder_id, moder_name)
     await message.reply('Ответ отправлен')
     await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}')
     await state.finish()
+
+@dp.message_handler(state=Answer.add_moder)
+async def process_adding_moder(message: types.Message, state: FSMContext):
+    # Обработка добавления модера, получаем айди и имя, завершаем состояние и т д
+    moder_id = message.text.split()[0]
+    moder_name = message.text.split()[1]
+    await state.finish()
+    await db.add_new_moder(moder_id=moder_id, moder_name=moder_name)
+    await message.answer('Модер добавлен', reply_markup=moder_owner_start_keyboard)
+
+@dp.message_handler(state=Answer.delete_moder)
+async def process_deleting_moder(message: types.Message, state: FSMContext):
+    # Тоже самое, что и с добавлением
+    await db.delete_moder(message.text)
+    await state.finish()
+    await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
+
+@dp.message_handler(state=Answer.making_question)
+async def process_question_button(message: types.Message, state: FSMContext):
+    print(1)
+    # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
+    question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
+    # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
+    # Активация блока Chat gpt
+    answer = await answer_information(message.text)
+    await db.update_gpt_answer(question_id=question_id, answer=answer)
+    await state.finish()
+    await message.reply('Вопрос был передан', reply_markup=user_keyboard)

@@ -8,11 +8,11 @@ bot = Bot(OLD_API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 db = Database()
-MODER_CHAT_ID = '869012176'
 
 async def on_startup(dp):
     await db.create_connection()
     await db.create_table()
+    await db.create_infromation_about_moder()
     print('Бот запущен!')
 
 async def on_startup_wrapper(dp):

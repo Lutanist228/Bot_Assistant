@@ -1,6 +1,15 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove 
 from aiogram.utils.callback_data import CallbackData
+
+#                                             GLOBAL
+#----------------------------------------------------------------------------------------------------------------
+glavnoe_menu_keyboard = InlineKeyboardMarkup()
+
+glavnoe_menu_button = InlineKeyboardButton(text='В главное меню', callback_data='glavnoe_menu')
+
+glavnoe_menu_keyboard.add(glavnoe_menu_button)
+
 #                                             USER
 #----------------------------------------------------------------------------------------------------------------
 user_keyboard = InlineKeyboardMarkup(row_width=2)
@@ -33,11 +42,15 @@ class Boltun_Keys:
 #                                             MODER
 #----------------------------------------------------------------------------------------------------------------
 moder_start_keyboard = InlineKeyboardMarkup(row_width=2)
+moder_owner_start_keyboard = InlineKeyboardMarkup(row_width=2)
 
 number_of_unanswered_questions = InlineKeyboardButton(text='Ожидают ответа', callback_data='number_unanswered')
 answer_the_question = InlineKeyboardButton(text='Ответить на вопрос', callback_data='answer_question')
+add_moder = InlineKeyboardButton(text='Добавить модера', callback_data='add_moder')
+delete_moder = InlineKeyboardButton(text='Удалить модера', callback_data='delete_moder')
 
 moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question)
+moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder)
 
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)

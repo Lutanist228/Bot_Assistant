@@ -1,4 +1,5 @@
 from cache_container import cache
+from keyboards import glavnoe_menu_button
 
 from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -85,7 +86,7 @@ async def create_inline_keyboard(rows):
 
     for button_list in button_lists:
         questions_keyboard.add(*button_list)
-
+    questions_keyboard.add(glavnoe_menu_button)
     return questions_keyboard
 
 
