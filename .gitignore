@@ -1,3 +1,1 @@
-*.docx
-*.db
-/db/.sqlite3
+config.py
