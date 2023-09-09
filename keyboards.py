@@ -23,8 +23,10 @@ class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
     back_to_menu = KeyboardButton("Вернуться к выбору")
     not_satisfied = KeyboardButton("Меня не устроил ответ")
+    failed_to_find = KeyboardButton("Не нашел подходящего вопроса")
     kb_3 = ReplyKeyboardMarkup(resize_keyboard=True).add(close_status, back_to_menu, not_satisfied)
-    kb_1 = ReplyKeyboardMarkup(resize_keyboard=True).add(not_satisfied)
+    kb_2 = ReplyKeyboardMarkup(resize_keyboard=True).add(not_satisfied, close_status)
+    kb_1 = ReplyKeyboardMarkup(resize_keyboard=True).add(failed_to_find)
 
 class Boltun_Keys:
     cd = CallbackData("bolt_questions", "action")
@@ -37,6 +39,7 @@ class Boltun_Keys:
             key_dict.update([(var, InlineKeyboardButton(text=f"Вопрос №{i + 1}",callback_data=Boltun_Keys.cd.new(f"question_{user_id}_{i}")))])
 
         keyboard.add(*[value for value in key_dict.values()])
+
         return keyboard
 
 #                                             MODER

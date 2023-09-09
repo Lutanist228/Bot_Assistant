@@ -28,12 +28,7 @@ class Answer(StatesGroup):
 
 class Global_Data_Storage():
     menu_temp_inf = 0
-
-# class Answer(StatesGroup):
-    # boltun_question = State()
-    # boltun_reply = State()
-    # boltun_back_to_menu = State() 
-    # gpt_question = State()
+    question_temp_inf = ""
 
 @dp.message_handler(commands=['start'])
 async def process_start_message(message: types.Message):
@@ -55,10 +50,10 @@ async def process_start_message(message: types.Message):
 
 @dp.message_handler(state=Answer.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
-    global BOLTUN_PATTERN
     await state.update_data(question=message.text) 
+    Global_Data_Storage.question_temp_inf = message.text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
-    await message.answer(text="Отлично, а теперь дождитесь ответа бота!")
+    await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=Boltun_Step_Back.kb_1)
     await Answer.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
     if reply_text != "Not Found":
@@ -77,7 +72,8 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                                question=question, 
                                                user_id=message.from_user.id, 
                                                user_name=message.from_user.full_name,
-                                               message_id=message.message_id)
+                                               message_id=message.message_id,
+                                               chat_type=message.chat.type)
             await db.update_fuzzy_data(
                 primary_key_value=message_id,
                 bot_reply=reply_text,
@@ -87,13 +83,12 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await Answer.boltun_reply.set()
     else:
         await Answer.making_question.set()
-        chat_type = message.chat.type
         # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
         question_id = await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id, 
                                             question=message.text,
-                                            chat_type=chat_type)
+                                            chat_type=message.chat.type)
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
         # Активация блока Chat gpt
         answer = await answer_information(message.text)
@@ -101,6 +96,21 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
         await state.finish()
         await message.reply('Вопрос был передан', reply_markup=user_keyboard)
         
+@dp.message_handler(text = "Не нашел подходящего вопроса", state=Answer.boltun_reply)
+async def redirect_question(message: types.Message, state: FSMContext):
+    await Answer.making_question.set()
+    # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
+    question_id = await db.add_question(user_id=message.from_user.id, 
+                                        user_name=message.from_user.full_name, 
+                                        message_id=message.message_id, 
+                                        question=Global_Data_Storage.question_temp_inf,
+                                        chat_type=message.chat.type)
+    # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
+    # Активация блока Chat gpt
+    answer = await answer_information(Global_Data_Storage.question_temp_inf)
+    await db.update_gpt_answer(question_id=question_id, answer=answer)
+    await state.finish()
+    await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
 @dp.message_handler(text = "Вернуться к выбору", state=Answer.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
@@ -132,7 +142,11 @@ async def quitting(message: types.Message, state: FSMContext):
     # question_extract = await db.get_question(question_id=question_id_extract, data_base_type="fuzzy_db")
 # Поменял здесь блок кода
     user_name = message.from_user.full_name
-    question_id = await db.add_question(user_id=user_id, user_name=user_name, question=question[0])
+    question_id = await db.add_question(user_id=user_id, 
+                                        user_name=user_name, 
+                                        question=question[0], 
+                                        chat_type=message.chat.type, 
+                                        message_id=message.message_id)
     answer = await answer_information(question[0])
     await db.update_gpt_answer(question_id=question_id, answer=answer)
     await message.reply('Вопрос был передан')
@@ -148,7 +162,7 @@ async def process_question_command(message: types.Message):
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id,
                                             question=question,
-                                            chat_type=chat_type,
+                                            chat_type=message.chat.type,
                                             supergroup_id=supergroup_id)
         await message.reply('Вопрос был передан')
         answer = await answer_information(message.text)
@@ -170,13 +184,19 @@ async def process_answer(message: types.Message, state: FSMContext):
     message_id = await db.get_message_id(question_id)
     # Получаем вид чата и его айди, чтобы отвечать в больших чатах
     chat_type, chat_id = await db.get_chat_type_and_id(question_id)
+    question = await db.get_question(question_id=question_id)
     await db.update_question_id(question_id, message.text, moder_id, moder_name)
     await message.reply('Ответ отправлен')
     if chat_type == 'supergroup':
         await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        # тут, после успешного ответа на вопрос происходит то, что вопрос и ответ сохраняюся в boltun.txt
+        save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
+        BOLTUN_PATTERN = file_reader("boltun.txt")
         await state.finish()
     else:
         await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
+        BOLTUN_PATTERN = file_reader("boltun.txt")
         await state.finish()
 
 @dp.message_handler(state=Answer.add_moder)
@@ -198,7 +218,10 @@ async def process_deleting_moder(message: types.Message, state: FSMContext):
 @dp.message_handler(state=Answer.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-    question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
+    question_id = await db.add_question(message.from_user.id, 
+                                        message.from_user.full_name, 
+                                        message.text, chat_type=message.chat.type, 
+                                        message_id=message.message_id)
     # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
     # Активация блока Chat gpt
     answer = await answer_information(message.text)

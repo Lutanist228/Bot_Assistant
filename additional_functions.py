@@ -18,8 +18,6 @@ def save_to_txt(file_path: str = "", print_as_finished = True, save_mode: str = 
         2) print_as_finished - флаг, который контролирует вывод надписи The information has been added to the {file_name}.txt file.;
         3) save_mode - формат работы с .txt файлом, по умолчанию - 'a';
         4) **kwargs - основа функции, где key - назавние файла, а value - содержимое файла;
-        
-
         """
         for key, value in kwargs.items():
             file_name = key
@@ -27,7 +25,7 @@ def save_to_txt(file_path: str = "", print_as_finished = True, save_mode: str = 
                 if isinstance(value, (tuple, list)):
                     [file.write(val) for val in value]
                 else:
-                    file.write(str(value) + "\n\n")
+                    file.write(str(value))
             if print_as_finished == True:
                 print("\n")
                 print(f"The information has been added to the {file_name}.txt file.")
