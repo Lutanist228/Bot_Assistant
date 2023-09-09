@@ -17,15 +17,19 @@ class Database:
                                (id INTEGER PRIMARY KEY AUTOINCREMENT,
                                user_id INTEGER,
                                user_name TEXT,
+                               message_id INTEGER,
                                question TEXT,
                                gpt_answer TEXT DEFAULT NULL,
                                answer TEXT DEFAULT NULL,
                                moder_id INTEGER,
-                               moder_name TEXT)''')
+                               moder_name TEXT,
+                               chat_type TEXT,
+                               supergroup_id INTEGER)''')
             
             await conn.execute("""CREATE TABLE IF NOT EXISTS fuzzy_db (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
+                message_id INTEGER,
                 quarry_date TEXT, 
                 question_text TEXT NULL,
                 reply_text TEXT NULL,
@@ -52,17 +56,17 @@ class Database:
                                        (moder_id, moder_name, 'Owner'))
                 await conn.commit()
                        
-    async def add_question(self, user_id: int, user_name:str, question: str, data_base_type: str = "admin_questions"):
+    async def add_question(self, user_id: int, user_name: str, message_id: int, question: str, chat_type: str, supergroup_id: int = None, data_base_type: str = "admin_questions"):
         if self.connection is None:
             await self.create_connection()
         if data_base_type == "admin_questions":    
-            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, question) VALUES (?, ?, ?)', 
-                                               (user_id, user_name, question)) as cursor:
+            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id) VALUES (?, ?, ?, ?, ?, ?)', 
+                                               (user_id, user_name, message_id, question, chat_type, supergroup_id)) as cursor:
                     question_id = cursor.lastrowid
                     await self.connection.commit()
         elif data_base_type == "fuzzy_db":
-            async with self.connection.execute(f"INSERT INTO fuzzy_db (question_text, user_id, quarry_date) VALUES(?, ?, datetime('now', '+3 hours'))", 
-                                               (question, user_id)) as cursor:
+            async with self.connection.execute(f"INSERT INTO fuzzy_db (question_text, user_id, message_id, quarry_date) VALUES(?, ?, ?, datetime('now', '+3 hours'))", 
+                                               (question, user_id, message_id)) as cursor:
                 question_id = cursor.lastrowid
                 await self.connection.commit()
         return question_id
@@ -111,7 +115,24 @@ class Database:
             rows = await cursor.fetchall()
             result = rows[0][1]
             return result
+    
+    async def get_message_id(self, question_id):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT * FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
+            rows = await cursor.fetchall()
+            result = rows[0][3]
+            return result
 
+    async def get_chat_type_and_id(self, question_id):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT * FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
+            rows = await cursor.fetchall()
+            chat_type = rows[0][9]
+            chat_id = rows[0][10]
+            return chat_type, chat_id
+        
     async def get_all_questions(self):
         if self.connection is None:
             await self.create_connection()

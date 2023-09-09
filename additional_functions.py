@@ -68,8 +68,8 @@ async def create_inline_keyboard(rows):
     for row in rows:
         question_id = str(row[0])
         username = row[2]
-        question = row[3]
-        gpt_answer = row[4]
+        question = row[4]
+        gpt_answer = row[5]
         data = {'username': username,
                 'question': question,
                 'Ответа бота': gpt_answer}

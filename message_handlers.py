@@ -76,7 +76,8 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             message_id = await db.add_question(data_base_type="fuzzy_db", 
                                                question=question, 
                                                user_id=message.from_user.id, 
-                                               user_name=message.from_user.full_name)
+                                               user_name=message.from_user.full_name,
+                                               message_id=message.message_id)
             await db.update_fuzzy_data(
                 primary_key_value=message_id,
                 bot_reply=reply_text,
@@ -86,8 +87,13 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await Answer.boltun_reply.set()
     else:
         await Answer.making_question.set()
+        chat_type = message.chat.type
         # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-        question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
+        question_id = await db.add_question(user_id=message.from_user.id, 
+                                            user_name=message.from_user.full_name, 
+                                            message_id=message.message_id, 
+                                            question=message.text,
+                                            chat_type=chat_type)
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
         # Активация блока Chat gpt
         answer = await answer_information(message.text)
@@ -131,16 +137,24 @@ async def quitting(message: types.Message, state: FSMContext):
     await db.update_gpt_answer(question_id=question_id, answer=answer)
     await message.reply('Вопрос был передан')
 
-# @dp.message_handler(commands=['question'])
-# async def process_question_command(message: types.Message):
-#     if len(message.text) > 10:
-#         question = message.text.split('/question')[-1]
-#         await db.add_question(message.from_user.id, message.text)
-#         # await bot.send_message(MODER_CHAT_ID,
-#          #                      f'Вопрос от {message.from_user.full_name}: {question}')
-#         await message.reply('Вопрос был передан')
-#     else:
-#         await message.answer('Неверный формат')
+@dp.message_handler(commands=['question'])
+async def process_question_command(message: types.Message):
+    # Обработка в чате вопроса через команду /question
+    if len(message.text) > 10:
+        chat_type = message.chat.type
+        supergroup_id = message.chat.id
+        question = message.text.split('/question')[-1]
+        question_id = await db.add_question(user_id=message.from_user.id, 
+                                            user_name=message.from_user.full_name, 
+                                            message_id=message.message_id,
+                                            question=question,
+                                            chat_type=chat_type,
+                                            supergroup_id=supergroup_id)
+        await message.reply('Вопрос был передан')
+        answer = await answer_information(message.text)
+        await db.update_gpt_answer(question_id=question_id, answer=answer)
+    else:
+        await message.answer('Неверный формат')
 
 # @dp.message_handler(commands=['answer'], user_id=MODER_CHAT_ID, state='*')
 # async def process_answer_command(message: types.Message, state: FSMContext):
@@ -163,10 +177,18 @@ async def process_answer(message: types.Message, state: FSMContext):
     question_id = data.get('question_id')
     # Из бд получаем айди пользователя, чтобы отправить ему ответ
     user_id = await db.get_user_id(question_id)
+    # Получаем айди сообщения, чтобы наглядно было видно на какое отвечаем
+    message_id = await db.get_message_id(question_id)
+    # Получаем вид чата и его айди, чтобы отвечать в больших чатах
+    chat_type, chat_id = await db.get_chat_type_and_id(question_id)
     await db.update_question_id(question_id, message.text, moder_id, moder_name)
     await message.reply('Ответ отправлен')
-    await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}')
-    await state.finish()
+    if chat_type == 'supergroup':
+        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        await state.finish()
+    else:
+        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        await state.finish()
 
 @dp.message_handler(state=Answer.add_moder)
 async def process_adding_moder(message: types.Message, state: FSMContext):
