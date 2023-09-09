@@ -108,7 +108,8 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
         await callback.message.edit_text(result, reply_markup=moder_choose_question_keyboard)
     # Обработка выбора определенного вопроса
     elif callback.data == 'choose_answer':
-        await callback.message.answer('Напишите свой ответ или скопируйте ответа бота, если считаете его правильным', 
+        await callback.message.delete()
+        await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
                                       reply_markup=glavnoe_menu_keyboard)
         await Answer.waiting_for_answer.set()
         

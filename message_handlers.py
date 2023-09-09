@@ -156,17 +156,6 @@ async def process_question_command(message: types.Message):
     else:
         await message.answer('Неверный формат')
 
-# @dp.message_handler(commands=['answer'], user_id=MODER_CHAT_ID, state='*')
-# async def process_answer_command(message: types.Message, state: FSMContext):
-#     questions = await db.get_unaswered_questions()
-#     if len(questions) > 0:
-#         question = questions[0]
-#         await message.answer(f'Вопрос: {question[1]}:\n\n{question[2]}')
-#         await Answer.waiting_for_answer.set()
-#         await state.update_data(question_id=question[0], user_id=question[1])
-#     else:
-#         await message.answer('Нет вопросов')
-
 @dp.message_handler(state=Answer.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
     # Получаем айди и имя модера, чтобы сохранить в бд

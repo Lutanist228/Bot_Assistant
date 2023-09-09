@@ -158,17 +158,17 @@ class Database:
                 else:
                     return None
             
-    async def delete_question(self, question_id: int):
-        async with self.connection.execute('DELETE FROM admin_questions WHERE id = ?', (question_id,)):
-            await self.connection.execute('DELETE FROM sqlite_sequence WHERE name="questions"')
-            await self.connection.commit()
+    # async def delete_question(self, question_id: int):
+    #     async with self.connection.execute('DELETE FROM admin_questions WHERE id = ?', (question_id,)):
+    #         await self.connection.execute('DELETE FROM sqlite_sequence WHERE name="questions"')
+    #         await self.connection.commit()
 
-    async def clear_questions(self):
-        if self.connection is None:
-            await self.create_connection()
-        async with self.connection.execute('DELETE FROM admin_questions'):
-            await self.connection.execute('DELETE FROM sqlite_sequence WHERE name="questions"')
-            await self.connection.commit()
+    # async def clear_questions(self):
+    #     if self.connection is None:
+    #         await self.create_connection()
+    #     async with self.connection.execute('DELETE FROM admin_questions'):
+    #         await self.connection.execute('DELETE FROM sqlite_sequence WHERE name="questions"')
+    #         await self.connection.commit()
 
     async def get_number_of_unanswered_questions(self):
         if self.connection is None:
