@@ -4,7 +4,7 @@ from keyboards import Boltun_Step_Back, Boltun_Keys
 from additional_functions import fuzzy_handler
 from config_file import BOLTUN_PATTERN
 from additional_functions import create_inline_keyboard
-from message_handlers import Answer, db, Boltun_Question_Processing, Global_Data_Storage, cache
+from message_handlers import Answer, db, Answer, Global_Data_Storage, cache
 from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
 
 from aiogram.dispatcher import FSMContext
@@ -37,7 +37,7 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
         reply_status='TRUE',
         similarity_rate=similarity_rate
         )
-    await Boltun_Question_Processing.boltun_reply.set()
+    await Answer.boltun_reply.set()
 
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
@@ -62,7 +62,7 @@ async def callback_process(callback: types.CallbackQuery):
     elif callback.data == 'make_question':
         # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
         await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
-        await Boltun_Question_Processing.boltun_question.set()
+        await Answer.boltun_question.set()
     elif callback.data == 'number_unanswered':
         # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
         number = await db.get_number_of_unanswered_questions()

@@ -11,7 +11,6 @@ async def start_data():
         return lines
         
 async def answer_information(question = None):
-    print(question)
     data = await start_data()
     messages = [{'role': 'system', 'content': f'''Remember the following information and give answers based on it. You are given data that contains possible questions after 
                  "Question:" and possible answers to them after "Answer:".\n{data}'''}]

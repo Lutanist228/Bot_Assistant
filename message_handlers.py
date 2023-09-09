@@ -21,15 +21,19 @@ class Answer(StatesGroup):
     choosing_answer = State()
     add_moder = State()
     delete_moder = State()
-
-class Global_Data_Storage():
-    menu_temp_inf = 0
-
-class Boltun_Question_Processing(StatesGroup):
     boltun_question = State()
     boltun_reply = State()
     boltun_back_to_menu = State() 
     gpt_question = State()
+
+class Global_Data_Storage():
+    menu_temp_inf = 0
+
+# class Answer(StatesGroup):
+    # boltun_question = State()
+    # boltun_reply = State()
+    # boltun_back_to_menu = State() 
+    # gpt_question = State()
 
 @dp.message_handler(commands=['start'])
 async def process_start_message(message: types.Message):
@@ -49,13 +53,13 @@ async def process_start_message(message: types.Message):
         # answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
         # answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК Сеченовского университета.\nНапишите свой вопрос.'
 
-@dp.message_handler(state=Boltun_Question_Processing.boltun_question)
+@dp.message_handler(state=Answer.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     global BOLTUN_PATTERN
     await state.update_data(question=message.text) 
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await message.answer(text="Отлично, а теперь дождитесь ответа бота!")
-    await Boltun_Question_Processing.boltun_reply.set()
+    await Answer.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90: 
@@ -79,11 +83,20 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 reply_status='TRUE',
                 similarity_rate=similarity_rate
                 )
-            await Boltun_Question_Processing.boltun_reply.set()
+            await Answer.boltun_reply.set()
     else:
         await Answer.making_question.set()
+        # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
+        question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
+        # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
+        # Активация блока Chat gpt
+        answer = await answer_information(message.text)
+        await db.update_gpt_answer(question_id=question_id, answer=answer)
+        await state.finish()
+        await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+        
 
-@dp.message_handler(text = "Вернуться к выбору", state=Boltun_Question_Processing.boltun_reply)
+@dp.message_handler(text = "Вернуться к выбору", state=Answer.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
 # он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
 async def on_reply_processing(message: types.Message):
@@ -99,12 +112,12 @@ async def on_reply_processing(message: types.Message):
     # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
 
-@dp.message_handler(text = "Завершить процесс", state=Boltun_Question_Processing.boltun_reply)
+@dp.message_handler(text = "Завершить процесс", state=Answer.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
     await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
     await state.finish()
 
-@dp.message_handler(text = "Меня не устроил ответ", state=Boltun_Question_Processing.boltun_reply)
+@dp.message_handler(text = "Меня не устроил ответ", state=Answer.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question = await db.get_fuzzy_id(user_id=user_id)
@@ -173,7 +186,6 @@ async def process_deleting_moder(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Answer.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
-    print(1)
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
     question_id = await db.add_question(message.from_user.id, message.from_user.full_name, message.text)
     # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
