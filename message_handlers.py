@@ -6,7 +6,7 @@ import json
 
 from db_actions import Database
 from main import dp, bot
-from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard
+from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
 from Chat_gpt_module import answer_information
 from keyboards import Boltun_Step_Back
@@ -25,6 +25,7 @@ class Answer(StatesGroup):
     boltun_reply = State()
     boltun_back_to_menu = State() 
     gpt_question = State()
+    adding_to_base = State()
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -170,12 +171,15 @@ async def process_question_command(message: types.Message):
 
 @dp.message_handler(state=Answer.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
-    global BOLTUN_PATTERN
     # Получаем айди и имя модера, чтобы сохранить в бд
     moder_id = message.from_user.id
     moder_name = message.from_user.full_name
     # Достаем айди вопроса, в котором должны обновить информацию/ответ
     data = await state.get_data()
+    # print(data)
+    # if message:
+    #     message_id_moder = data['moder_chat_id']
+    #     await bot.delete_message(chat_id=moder_id, message_id=message_id_moder)
     question_id = data.get('question_id')
     # Из бд получаем айди пользователя, чтобы отправить ему ответ
     user_id = await db.get_user_id(question_id)
@@ -188,23 +192,23 @@ async def process_answer(message: types.Message, state: FSMContext):
     await message.reply('Ответ отправлен')
     if chat_type == 'supergroup':
         await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
-        # тут, после успешного ответа на вопрос происходит то, что вопрос и ответ сохраняюся в boltun.txt
-        save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
-        BOLTUN_PATTERN = file_reader("boltun.txt")
         await state.finish()
     else:
         await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
-        save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
-        BOLTUN_PATTERN = file_reader("boltun.txt")
         await state.finish()
+        # Блок по добавлению в базу ответов
+    await message.answer('Внести его в базу данных вопросов?', reply_markup=question_base_keyboard)
+    await Answer.adding_to_base.set()
+    await state.update_data(question=question.get('question'), answer=message.text)
 
 @dp.message_handler(state=Answer.add_moder)
 async def process_adding_moder(message: types.Message, state: FSMContext):
     # Обработка добавления модера, получаем айди и имя, завершаем состояние и т д
     moder_id = message.text.split()[0]
     moder_name = message.text.split()[1]
+    moder_role = message.text.split()[2]
     await state.finish()
-    await db.add_new_moder(moder_id=moder_id, moder_name=moder_name)
+    await db.add_new_moder(moder_id=moder_id, moder_name=moder_name, role=moder_role)
     await message.answer('Модер добавлен', reply_markup=moder_owner_start_keyboard)
 
 @dp.message_handler(state=Answer.delete_moder)

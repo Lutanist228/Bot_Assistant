@@ -200,11 +200,11 @@ class Database:
             result = await cursor.fetchall()
             return result
         
-    async def add_new_moder(self, moder_id: int, moder_name: str):
+    async def add_new_moder(self, moder_id: int, moder_name: str, role: str):
         if self.connection is None:
             await self.create_connection()
-        async with self.connection.execute('INSERT INTO moder_information (moder_id, moder_name) VALUES (?, ?)', 
-                                           (moder_id, moder_name)):
+        async with self.connection.execute('INSERT INTO moder_information (moder_id, moder_name, role) VALUES (?, ?, ?)', 
+                                           (moder_id, moder_name, role)):
             await self.connection.commit()
 
     async def delete_moder(self, moder_id: int):

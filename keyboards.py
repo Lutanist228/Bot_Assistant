@@ -56,10 +56,11 @@ answer_the_question = InlineKeyboardButton(text='Ответить на вопр�
 add_moder = InlineKeyboardButton(text='Добавить модера', callback_data='add_moder')
 delete_moder = InlineKeyboardButton(text='Удалить модера', callback_data='delete_moder')
 generate_answer = InlineKeyboardButton(text='Сгенерировать ответ', callback_data='generate_answer')
+do_not_generate_answer = InlineKeyboardButton(text='Не генерировать', callback_data='do_not_generate_answer')
 
 moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question)
 moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder)
-generate_answer_keyboard.add(generate_answer, glavnoe_menu_button)
+generate_answer_keyboard.add(generate_answer, do_not_generate_answer, glavnoe_menu_button)
 
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)
@@ -68,3 +69,10 @@ choose_question = InlineKeyboardButton(text='Выбрать вопрос', callb
 back = InlineKeyboardButton(text='Назад', callback_data='back')
 
 moder_choose_question_keyboard.add(choose_question, back)
+
+question_base_keyboard = InlineKeyboardMarkup(row_width=2)
+
+question_yes = InlineKeyboardButton(text='Да', callback_data='add_to_base')
+question_no = InlineKeyboardButton(text='Нет', callback_data='do_not_add_to_base')
+
+question_base_keyboard.add(question_yes, question_no)
