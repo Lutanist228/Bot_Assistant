@@ -10,8 +10,8 @@ from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_key
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
 from Chat_gpt_module import answer_information
 from keyboards import Boltun_Step_Back
-from config_file import BOLTUN_PATTERN
 from cache_container import cache
+from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
 
 db = Database()
@@ -50,14 +50,15 @@ async def process_start_message(message: types.Message):
 
 @dp.message_handler(state=Answer.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
+    global BOLTUN_PATTERN
     await state.update_data(question=message.text) 
     Global_Data_Storage.question_temp_inf = message.text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
-    await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=Boltun_Step_Back.kb_1)
     await Answer.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
     if reply_text != "Not Found":
-        if 50 <= similarity_rate <= 90: 
+        if 50 <= similarity_rate <= 90:
+            await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=Boltun_Step_Back.kb_failed_to_find)
             serialized_question_menu_data = json.dumps(list_of_questions)
             await cache.set(message.message_id, serialized_question_menu_data)
             Global_Data_Storage.menu_temp_inf = message.message_id
@@ -66,7 +67,8 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                       text=f"Возможно вы имели в виду:\n\n{gen_text}",
                                       reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
         else:
-            await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_1)
+            await message.answer(text="Отлично, а теперь дождитесь ответа бота!")
+            await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_got_answer)
             question = data.get('question')
             message_id = await db.add_question(data_base_type="fuzzy_db", 
                                                question=question, 
@@ -172,6 +174,7 @@ async def process_question_command(message: types.Message):
 
 @dp.message_handler(state=Answer.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
+    global BOLTUN_PATTERN
     # Получаем айди и имя модера, чтобы сохранить в бд
     moder_id = message.from_user.id
     moder_name = message.from_user.full_name
@@ -188,13 +191,13 @@ async def process_answer(message: types.Message, state: FSMContext):
     await db.update_question_id(question_id, message.text, moder_id, moder_name)
     await message.reply('Ответ отправлен')
     if chat_type == 'supergroup':
-        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
         # тут, после успешного ответа на вопрос происходит то, что вопрос и ответ сохраняюся в boltun.txt
         save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
         BOLTUN_PATTERN = file_reader("boltun.txt")
         await state.finish()
     else:
-        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
         save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
         BOLTUN_PATTERN = file_reader("boltun.txt")
         await state.finish()
@@ -228,3 +231,7 @@ async def process_question_button(message: types.Message, state: FSMContext):
     await db.update_gpt_answer(question_id=question_id, answer=answer)
     await state.finish()
     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+
+@dp.message_handler(text = "Вернуться в главное меню", state=None)
+async def back_to_start(message: types.Message, state: FSMContext):
+    await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)

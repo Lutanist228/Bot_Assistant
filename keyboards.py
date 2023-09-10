@@ -21,12 +21,15 @@ user_keyboard.add(question_button, instruction_button)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
-    back_to_menu = KeyboardButton("Вернуться к выбору")
+    back_to_questions = KeyboardButton("Вернуться к выбору")
     not_satisfied = KeyboardButton("Меня не устроил ответ")
     failed_to_find = KeyboardButton("Не нашел подходящего вопроса")
-    kb_3 = ReplyKeyboardMarkup(resize_keyboard=True).add(close_status, back_to_menu, not_satisfied)
-    kb_2 = ReplyKeyboardMarkup(resize_keyboard=True).add(not_satisfied, close_status)
-    kb_1 = ReplyKeyboardMarkup(resize_keyboard=True).add(failed_to_find)
+    back_to_menu = KeyboardButton("Вернуться в главное меню")
+
+    kb_choosing_questions = ReplyKeyboardMarkup(resize_keyboard=True).add(close_status, back_to_questions, not_satisfied)
+    kb_got_answer = ReplyKeyboardMarkup(resize_keyboard=True).add(not_satisfied, close_status)
+    kb_failed_to_find = ReplyKeyboardMarkup(resize_keyboard=True).add(failed_to_find, close_status)
+    kb_return_to_start = ReplyKeyboardMarkup(resize_keyboard=True).add(back_to_menu)
 
 class Boltun_Keys:
     cd = CallbackData("bolt_questions", "action")
