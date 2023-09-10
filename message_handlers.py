@@ -32,22 +32,24 @@ class Global_Data_Storage():
 
 @dp.message_handler(commands=['start'])
 async def process_start_message(message: types.Message):
-# Достаем айдишники модеров, чтобы проверить пользователя кем он является
-    moder_ids = await db.get_moder()
-    for id in moder_ids:
-        if message.from_user.id == id[0]:
-            # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
-            if id[1] == 'Owner':
-                await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
-            else:
-                await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
-            return
-    await message.delete()
-    await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+    if message.chat.type == 'private':
+    # Достаем айдишники модеров, чтобы проверить пользователя кем он является
+        moder_ids = await db.get_moder()
+        for id in moder_ids:
+            if message.from_user.id == id[0]:
+                # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
+                if id[1] == 'Owner':
+                    await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+                else:
+                    await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
+                return
+        await message.delete()
+        await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+    else:
+        await message.reply('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "/question ваш вопрос"')
     # Перенести в стартовое окно
         # answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
         # answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК Сеченовского университета.\nНапишите свой вопрос.'
-
 @dp.message_handler(state=Answer.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     global BOLTUN_PATTERN
@@ -64,18 +66,18 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             Global_Data_Storage.menu_temp_inf = message.message_id
             gen_text = [f"""Вопрос №{num + 1}: {value}\n""" for num, value in enumerate(list_of_questions)] ; gen_text = ''.join(gen_text)
             await bot.send_message(chat_id=message.from_user.id, 
-                                      text=f"Возможно вы имели в виду:\n\n{gen_text}",
-                                      reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
+                                    text=f"Возможно вы имели в виду:\n\n{gen_text}",
+                                    reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
         else:
             await message.answer(text="Отлично, а теперь дождитесь ответа бота!")
             await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_got_answer)
             question = data.get('question')
             message_id = await db.add_question(data_base_type="fuzzy_db", 
-                                               question=question, 
-                                               user_id=message.from_user.id, 
-                                               user_name=message.from_user.full_name,
-                                               message_id=message.message_id,
-                                               chat_type=message.chat.type)
+                                            question=question, 
+                                            user_id=message.from_user.id, 
+                                            user_name=message.from_user.full_name,
+                                            message_id=message.message_id,
+                                            chat_type=message.chat.type)
             await db.update_fuzzy_data(
                 primary_key_value=message_id,
                 bot_reply=reply_text,
@@ -84,20 +86,16 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 )
             await Answer.boltun_reply.set()
     else:
-        await Answer.making_question.set()
         # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-        question_id = await db.add_question(user_id=message.from_user.id, 
+        await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id, 
                                             question=message.text,
                                             chat_type=message.chat.type)
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
-        # Активация блока Chat gpt
-        answer = await answer_information(message.text)
-        await db.update_gpt_answer(question_id=question_id, answer=answer)
         await state.finish()
         await message.reply('Вопрос был передан', reply_markup=user_keyboard)
-        
+
 @dp.message_handler(text = "Не нашел подходящего вопроса", state=Answer.boltun_reply)
 async def redirect_question(message: types.Message, state: FSMContext):
     await Answer.making_question.set()
@@ -164,11 +162,9 @@ async def process_question_command(message: types.Message):
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id,
                                             question=question,
-                                            chat_type=message.chat.type,
+                                            chat_type=chat_type,
                                             supergroup_id=supergroup_id)
         await message.reply('Вопрос был передан')
-        answer = await answer_information(message.text)
-        await db.update_gpt_answer(question_id=question_id, answer=answer)
     else:
         await message.answer('Неверный формат')
 
@@ -191,7 +187,7 @@ async def process_answer(message: types.Message, state: FSMContext):
     await db.update_question_id(question_id, message.text, moder_id, moder_name)
     await message.reply('Ответ отправлен')
     if chat_type == 'supergroup':
-        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
+        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
         # тут, после успешного ответа на вопрос происходит то, что вопрос и ответ сохраняюся в boltun.txt
         save_to_txt(boltun=f"""u: {question.get("question")}\n{message.text}\n""")
         BOLTUN_PATTERN = file_reader("boltun.txt")

@@ -5,8 +5,10 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader
 from message_handlers import Answer, db, Global_Data_Storage, cache
 from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
+from keyboards import generate_answer_keyboard
 from Chat_gpt_module import answer_information
 
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
 import json
 from aiogram.dispatcher.filters import Text
@@ -81,11 +83,11 @@ async def callback_process(callback: types.CallbackQuery):
         await Answer.choosing_answer.set()
     elif callback.data == 'add_moder':
         # Добавить модера, надо сделать проверку, что именно айди и имя через пробел и т д
-        await callback.message.edit_text('Введите id и имя модератора через пробел')
+        await callback.message.edit_text('Введите id и имя модератора через пробел', reply_markup=glavnoe_menu_keyboard)
         await Answer.add_moder.set()
     elif callback.data == 'delete_moder':
         # Удаление модера
-        await callback.message.edit_text('Введите id модера')
+        await callback.message.edit_text('Введите id модера', reply_markup=glavnoe_menu_keyboard)
         await Answer.delete_moder.set()
 
 @dp.callback_query_handler(Text('back'), state=Answer.choosing_answer)
@@ -110,12 +112,24 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
         result = ''
         for key, value in information.items():
             result += f'{key}: {value}\n'
+            if key == 'question':
+                await state.update_data(question=value)
         await state.update_data(question_id=callback_data)
         await callback.message.edit_text(result, reply_markup=moder_choose_question_keyboard)
     # Обработка выбора определенного вопроса
     elif callback.data == 'choose_answer':
-        await callback.message.delete()
+        markup = InlineKeyboardMarkup()
+        await callback.message.edit_reply_markup(reply_markup=markup)
         await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
-                                      reply_markup=glavnoe_menu_keyboard)
+                                      reply_markup=generate_answer_keyboard)
         await Answer.waiting_for_answer.set()
-        
+
+@dp.callback_query_handler(Text('generate_answer'), state=Answer.waiting_for_answer)
+async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
+        await callback.message.delete()
+        data = await state.get_data()
+        question_id = data['question_id']
+        question = data['question']
+        answer = await answer_information(question=question)
+        await db.update_gpt_answer(question_id=question_id, answer=answer)
+        await callback.message.answer(f'Сгенерированный ответ:\n{answer}')

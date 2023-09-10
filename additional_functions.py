@@ -67,10 +67,8 @@ async def create_inline_keyboard(rows):
         question_id = str(row[0])
         username = row[2]
         question = row[4]
-        gpt_answer = row[5]
         data = {'username': username,
-                'question': question,
-                'Ответа бота': gpt_answer}
+                'question': question}
         # Переводим данные в json формат
         serialized_data = json.dumps(data)
 
