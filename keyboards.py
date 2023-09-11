@@ -57,9 +57,10 @@ add_moder = InlineKeyboardButton(text='Добавить модера', callback_
 delete_moder = InlineKeyboardButton(text='Удалить модера', callback_data='delete_moder')
 generate_answer = InlineKeyboardButton(text='Сгенерировать ответ', callback_data='generate_answer')
 do_not_generate_answer = InlineKeyboardButton(text='Не генерировать', callback_data='do_not_generate_answer')
+upload_database = InlineKeyboardButton(text='Выгрузить базу', callback_data='upload_base')
 
 moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question)
-moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder)
+moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder, upload_database)
 generate_answer_keyboard.add(generate_answer, do_not_generate_answer, glavnoe_menu_button)
 
 #----------------------------------------------------------------------------------------------------------------

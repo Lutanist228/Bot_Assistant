@@ -176,10 +176,6 @@ async def process_answer(message: types.Message, state: FSMContext):
     moder_name = message.from_user.full_name
     # Достаем айди вопроса, в котором должны обновить информацию/ответ
     data = await state.get_data()
-    # print(data)
-    # if message:
-    #     message_id_moder = data['moder_chat_id']
-    #     await bot.delete_message(chat_id=moder_id, message_id=message_id_moder)
     question_id = data.get('question_id')
     # Из бд получаем айди пользователя, чтобы отправить ему ответ
     user_id = await db.get_user_id(question_id)

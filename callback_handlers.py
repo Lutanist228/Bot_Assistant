@@ -90,6 +90,8 @@ async def callback_process(callback: types.CallbackQuery):
         # Удаление модера
         await callback.message.edit_text('Введите id модера', reply_markup=glavnoe_menu_keyboard)
         await Answer.delete_moder.set()
+    elif callback.data =='upload_base':
+        pass
 
 @dp.callback_query_handler(Text('back'), state=Answer.choosing_answer)
 async def back_process(callback: types.CallbackQuery, state: FSMContext):
