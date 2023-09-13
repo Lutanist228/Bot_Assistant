@@ -4,6 +4,7 @@ from keyboards import glavnoe_menu_button
 from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
+import pandas as pd
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -85,4 +86,22 @@ async def create_inline_keyboard(rows):
     questions_keyboard.add(glavnoe_menu_button)
     return questions_keyboard
 
+async def check_program(name):
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs.xlsx'
+    
+    programs = pd.read_excel(path, sheet_name='Общая таблица')
+    full_name = name.split()
+    full_name = [word.capitalize() for word in full_name]
+    full_name = ' '.join(full_name)
+    
+    consortium_options = ['Да', 'Соглашение', 'СУ']
+    status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
+    
+    data_to_check = programs.loc[(programs['ФИО'] == full_name) &
+                                 (programs['Консорциум'].isin(consortium_options)) &
+                                 (programs['Статус'].isin(status_options))]['Программа'].tolist()
+    try:
+        return data_to_check[0]
+    except IndexError:
+        return 'Нет в зачислении'
 

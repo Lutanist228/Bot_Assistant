@@ -5,7 +5,7 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Answer, db, Global_Data_Storage, cache
 from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
-from keyboards import generate_answer_keyboard
+from keyboards import generate_answer_keyboard, Boltun_Step_Back
 from Chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN
 
@@ -67,7 +67,7 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 async def callback_process(callback: types.CallbackQuery):
     if callback.data == 'instruction':
         # Нужно будет написать инстуркцию
-        await callback.message.answer('Инструкция:\nИспользуйте кнопку "Задать вопрос", чтобы задать вопрос (пишите только текст, БЕЗ ФОТО и ДОКУМЕНТОВ)\nТакже у вас будут доступны кнопки, чтобы получить ответ от человека либо вернуться в главное меню.')
+        await callback.message.edit_text('Инструкция:\nИспользуйте кнопку "Задать вопрос", чтобы задать вопрос (пишите только текст, БЕЗ ФОТО и ДОКУМЕНТОВ)\nТакже у вас будут доступны кнопки, чтобы получить ответ от человека либо вернуться в главное меню.', reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'make_question':
         # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
         await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
@@ -92,7 +92,11 @@ async def callback_process(callback: types.CallbackQuery):
         await Answer.delete_moder.set()
     elif callback.data =='upload_base':
         pass
-
+    elif callback.data == 'check_programm':
+        await Answer.check_programm.set()
+        await callback.message.edit_text('Введите свое ФИО, чтобы проверить вашу программу на зачисление', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        
 @dp.callback_query_handler(Text('back'), state=Answer.choosing_answer)
 async def back_process(callback: types.CallbackQuery, state: FSMContext):
     # Обработка возвращения назад

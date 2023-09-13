@@ -15,9 +15,10 @@ glavnoe_menu_keyboard.add(glavnoe_menu_button)
 user_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
+check_programm_in_base = InlineKeyboardButton(text='Проверить программу', callback_data='check_programm')
 instruction_button = InlineKeyboardButton(text='Инструкция по взаимодействию', callback_data='instruction')
 
-user_keyboard.add(question_button, instruction_button)
+user_keyboard.add(question_button, check_programm_in_base, instruction_button)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")

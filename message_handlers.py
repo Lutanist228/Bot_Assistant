@@ -7,7 +7,7 @@ import json
 from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard
-from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
+from additional_functions import create_inline_keyboard, fuzzy_handler, check_program
 from Chat_gpt_module import answer_information
 from keyboards import Boltun_Step_Back
 from cache_container import cache
@@ -26,6 +26,7 @@ class Answer(StatesGroup):
     boltun_back_to_menu = State() 
     gpt_question = State()
     adding_to_base = State()
+    check_programm = State()
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -231,3 +232,14 @@ async def process_question_button(message: types.Message, state: FSMContext):
 @dp.message_handler(text = "Вернуться в главное меню", state=None)
 async def back_to_start(message: types.Message, state: FSMContext):
     await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+
+@dp.message_handler(state=Answer.check_programm)
+async def process_check_programm(message: types.Message, state: FSMContext):
+    await message.answer('Ожидайте ответа')
+    name = message.text.strip()
+    result = await check_program(name)
+    if result == 'Нет в зачислении':
+        await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+    else:
+        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе', reply_markup=user_keyboard)
+    await state.finish()
