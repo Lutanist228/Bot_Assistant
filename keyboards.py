@@ -15,7 +15,7 @@ glavnoe_menu_keyboard.add(glavnoe_menu_button)
 user_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
-check_programm_in_base = InlineKeyboardButton(text='Проверить программу', callback_data='check_programm')
+check_programm_in_base = InlineKeyboardButton(text='Проверить зачисление', callback_data='check_programm')
 instruction_button = InlineKeyboardButton(text='Инструкция по взаимодействию', callback_data='instruction')
 
 user_keyboard.add(question_button, check_programm_in_base, instruction_button)
@@ -67,10 +67,11 @@ generate_answer_keyboard.add(generate_answer, do_not_generate_answer, glavnoe_me
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)
 
-choose_question = InlineKeyboardButton(text='Выбрать вопрос', callback_data='choose_answer')
+choose_question = InlineKeyboardButton(text='Выбрать вопрос', callback_data='choose_question')
 back = InlineKeyboardButton(text='Назад', callback_data='back')
+close_question = InlineKeyboardButton(text='Закрыть вопрос', callback_data='close_question')
 
-moder_choose_question_keyboard.add(choose_question, back)
+moder_choose_question_keyboard.add(choose_question, close_question, back)
 
 question_base_keyboard = InlineKeyboardMarkup(row_width=2)
 

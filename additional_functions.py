@@ -87,7 +87,7 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name):
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs.xlsx'
+    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant\\programs.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
     full_name = name.split()

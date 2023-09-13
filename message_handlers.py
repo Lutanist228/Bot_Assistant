@@ -242,4 +242,8 @@ async def process_check_programm(message: types.Message, state: FSMContext):
         await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
     else:
         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе', reply_markup=user_keyboard)
+        await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
+Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
+Пройдите, пожалуйста, регистрацию на сайте
+https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru''')
     await state.finish()
