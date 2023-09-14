@@ -50,6 +50,14 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
 
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == 'Answer:waiting_for_answer':
+        data = await state.get_data()
+        question_id = data['question_id']
+        await db.update_question_id(question_id=question_id,
+                                    answer=None,
+                                    moder_id=callback.message.from_user.id,
+                                    moder_name=callback.message.from_user.full_name)
     # Обработка возврата в главное меню для всех
     user_id = callback.from_user.id
     moder_ids = await db.get_moder()
@@ -169,8 +177,14 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
         question_id = data['question_id']
         user_id = await db.get_user_id(question_id=question_id)
-        history = await db.check_history(user_id=user_id)
-        print(history)
+        questions = await db.check_history(user_id=user_id)
+        history = ''
+        for question in questions:
+            if question[6] == 'Вопрос взят':
+                continue
+            history += f'Вопрос: {question[4]}\nОтвет: {question[6]}\n\n'
+        await callback.message.edit_text(f'{history} Введите свой ответ или вернитесь в главное меню', 
+                                         reply_markup=glavnoe_menu_keyboard)
 
 
 @dp.callback_query_handler(state=Answer.adding_to_base)
