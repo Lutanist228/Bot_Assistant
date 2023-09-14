@@ -27,6 +27,8 @@ class Answer(StatesGroup):
     gpt_question = State()
     adding_to_base = State()
     check_programm = State()
+    check_fio = State()
+    check_snils = State()
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -233,11 +235,26 @@ async def process_question_button(message: types.Message, state: FSMContext):
 async def back_to_start(message: types.Message, state: FSMContext):
     await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
 
-@dp.message_handler(state=Answer.check_programm)
+@dp.message_handler(state=Answer.check_fio)
+async def checking_fio(message: types.Message, state: FSMContext):
+    await message.answer('Ожидайте ответа')
+    name = message.text.strip()
+    result = await check_program(name, method_check='fio')
+    if result == 'Нет в зачислении':
+        await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+    else:
+        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе', reply_markup=user_keyboard)
+        await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
+Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
+Пройдите, пожалуйста, регистрацию на сайте
+https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru''')
+    await state.finish()
+
+@dp.message_handler(state=Answer.check_snils)
 async def process_check_programm(message: types.Message, state: FSMContext):
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
-    result = await check_program(name)
+    result = await check_program(name, method_check='snils')
     if result == 'Нет в зачислении':
         await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
     else:

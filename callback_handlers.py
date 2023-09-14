@@ -5,7 +5,7 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Answer, db, Global_Data_Storage, cache
 from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
-from keyboards import generate_answer_keyboard, Boltun_Step_Back
+from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
 from Chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN
 
@@ -94,8 +94,8 @@ async def callback_process(callback: types.CallbackQuery):
         pass
     elif callback.data == 'check_programm':
         await Answer.check_programm.set()
-        await callback.message.edit_text('Введите свое ФИО, чтобы проверить вашу программу на зачисление', 
-                                         reply_markup=glavnoe_menu_keyboard)
+        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
+                                         reply_markup=check_programm_keyboard)
         
 @dp.callback_query_handler(Text('back'), state=Answer.choosing_answer)
 async def back_process(callback: types.CallbackQuery, state: FSMContext):
@@ -165,6 +165,12 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer(f'Сгенерированный ответ:\n{answer}')
     elif callback.data == 'do_not_generate_answer':
         await callback.message.delete()
+    elif callback.data == 'check_history':
+        data = await state.get_data()
+        question_id = data['question_id']
+        user_id = await db.get_user_id(question_id=question_id)
+        history = await db.check_history(user_id=user_id)
+        print(history)
 
 
 @dp.callback_query_handler(state=Answer.adding_to_base)
@@ -182,3 +188,14 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
     elif callback.data == 'do_not_add_to_base':
         await state.finish()
         await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+
+@dp.callback_query_handler(state=Answer.check_programm)
+async def program_checking(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'check_fio':
+        await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await Answer.check_fio.set()
+    elif callback.data == 'check_snils':
+        await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                         reply_markup=glavnoe_menu_keyboard)
+        await Answer.check_snils.set()

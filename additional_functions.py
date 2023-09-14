@@ -5,6 +5,7 @@ from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
 import pandas as pd
+import re
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -86,22 +87,26 @@ async def create_inline_keyboard(rows):
     questions_keyboard.add(glavnoe_menu_button)
     return questions_keyboard
 
-async def check_program(name):
-    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant\\programs.xlsx'
+async def check_program(name: str, method_check: str):
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_1.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
-    full_name = name.split()
-    full_name = [word.capitalize() for word in full_name]
-    full_name = ' '.join(full_name)
-    
-    consortium_options = ['Да', 'Соглашение', 'СУ']
+    consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
-    
-    data_to_check = programs.loc[(programs['ФИО'] == full_name) &
-                                 (programs['Консорциум'].isin(consortium_options)) &
-                                 (programs['Статус'].isin(status_options))]['Программа'].tolist()
+    if method_check == 'fio':
+        full_name = name.split()
+        full_name = [word.capitalize() for word in full_name]
+        full_name = ' '.join(full_name)
+
+        data_to_check = programs.loc[(programs['ФИО'] == full_name) &
+                                    (programs['Консорциум'].isin(consortium_options)) &
+                                    (programs['Статус'].isin(status_options))]['Программа'].tolist()
+    elif method_check == 'snils':
+        # Собираем СНИЛС с разделителями
+        data_to_check = programs.loc[(programs['-- '] == name) &
+                                    (programs['Консорциум'].isin(consortium_options)) &
+                                    (programs['Статус'].isin(status_options))]['Программа'].tolist()
     try:
         return data_to_check[0]
     except IndexError:
         return 'Нет в зачислении'
-
