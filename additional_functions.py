@@ -88,7 +88,7 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_1.xlsx'
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_2.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да']
@@ -103,7 +103,7 @@ async def check_program(name: str, method_check: str):
                                     (programs['Статус'].isin(status_options))]['Программа'].tolist()
     elif method_check == 'snils':
         # Собираем СНИЛС с разделителями
-        data_to_check = programs.loc[(programs['-- '] == name) &
+        data_to_check = programs.loc[(programs['СНИЛС'] == name) &
                                     (programs['Консорциум'].isin(consortium_options)) &
                                     (programs['Статус'].isin(status_options))]['Программа'].tolist()
     try:
