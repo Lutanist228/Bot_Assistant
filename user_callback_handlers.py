@@ -76,9 +76,9 @@ async def callback_process(callback: types.CallbackQuery):
     if callback.data == 'make_question':
         # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
         await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
-        await Answer.boltun_question.set()
+        await User_Panel.boltun_question.set()
     elif callback.data == 'check_programm':
-        await Answer.check_programm.set()
+        await User_Panel.check_programm.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
                                          reply_markup=check_programm_keyboard)
 

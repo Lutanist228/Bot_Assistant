@@ -18,6 +18,8 @@ class Database:
                                user_id INTEGER,
                                user_name TEXT,
                                message_id INTEGER,
+                               quarry_date REAL NULL,
+                               moder_answer_date REAL NULL,
                                question TEXT,
                                gpt_answer TEXT DEFAULT NULL,
                                answer TEXT DEFAULT NULL,
@@ -30,7 +32,7 @@ class Database:
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 message_id INTEGER,
-                quarry_date TEXT, 
+                quarry_date REAL NULL, 
                 question_text TEXT NULL,
                 reply_text TEXT NULL,
                 similarity_rate INTEGER DEFAULT 0,
@@ -60,12 +62,12 @@ class Database:
         if self.connection is None:
             await self.create_connection()
         if data_base_type == "admin_questions":    
-            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id) VALUES (?, ?, ?, ?, ?, ?)', 
+            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id, quarry_date) VALUES (?, ?, ?, ?, ?, ?, datetime(julianday("now", "+3 hours")))', 
                                                (user_id, user_name, message_id, question, chat_type, supergroup_id)) as cursor:
                     question_id = cursor.lastrowid
                     await self.connection.commit()
         elif data_base_type == "fuzzy_db":
-            async with self.connection.execute(f"INSERT INTO fuzzy_db (question_text, user_id, message_id, quarry_date) VALUES(?, ?, ?, datetime('now', '+3 hours'))", 
+            async with self.connection.execute("INSERT INTO fuzzy_db (question_text, user_id, message_id, quarry_date) VALUES(?, ?, ?, datetime(julianday('now', '+3 hours')))", 
                                                (question, user_id, message_id)) as cursor:
                 question_id = cursor.lastrowid
                 await self.connection.commit()
@@ -88,7 +90,8 @@ class Database:
     async def update_question_id(self, question_id: int, answer: str, moder_id: int, moder_name: str):
         async with self.connection.execute('''UPDATE admin_questions SET answer = ?, 
                                            moder_id = ?, 
-                                           moder_name = ? 
+                                           moder_name = ?,
+                                           moder_answer_date = datetime(julianday("now", "+3 hours")),
                                            WHERE id = ?''', (answer, moder_id,
                                                              moder_name, question_id)):
             await self.connection.commit()
@@ -200,10 +203,10 @@ class Database:
             result = await cursor.fetchone()
             return result
         
-    async def check_history(self, user_id: int, ):
+    async def check_history(self, user_id: int):
         if self.connection is None:
             await self.create_connection()
-        async with self.connection.execute('SELECT * FROM admin_questions WHERE user_id = ?', (user_id, )) as cursor:
+        async with self.connection.execute('SELECT * FROM admin_questions WHERE user_id = ? ORDER BY quarry_date', (user_id, )) as cursor:
             result = await cursor.fetchall()
             return result
 

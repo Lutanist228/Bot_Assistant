@@ -129,13 +129,11 @@ async def quitting(message: types.Message, state: FSMContext):
     # question_extract = await db.get_question(question_id=question_id_extract, data_base_type="fuzzy_db")
 # Поменял здесь блок кода
     user_name = message.from_user.full_name
-    question_id = await db.add_question(user_id=user_id, 
+    await db.add_question(user_id=user_id, 
                                         user_name=user_name, 
                                         question=question[0], 
                                         chat_type=message.chat.type, 
                                         message_id=message.message_id)
-    answer = await answer_information(question[0])
-    await db.update_gpt_answer(question_id=question_id, answer=answer)
     await message.reply('Вопрос был передан')
 
 @dp.message_handler(commands=['question'])

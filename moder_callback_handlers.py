@@ -46,7 +46,7 @@ async def back_process(callback: types.CallbackQuery, state: FSMContext):
         result = await db.get_list_of_unaswered_questions()
         keyboard = await create_inline_keyboard(result)
         await callback.message.edit_text('Просмотрите и выберите вопрос', reply_markup=keyboard)
-        await Answer.choosing_answer.set()
+        await Moder_Panel.choosing_answer.set()
 
 @dp.callback_query_handler(state=Moder_Panel.choosing_answer)
 async def process_choosing_answer(callback: types.CallbackQuery, state: FSMContext):
