@@ -1,17 +1,17 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
 import json
 
 from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard
-from additional_functions import create_inline_keyboard, fuzzy_handler, check_program
+from additional_functions import fuzzy_handler, check_program
 from chat_gpt_module import answer_information
 from keyboards import Boltun_Step_Back
 from cache_container import cache
 from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
+from states import User_Panel
 
 db = Database()
 
@@ -37,13 +37,13 @@ async def process_start_message(message: types.Message):
     else:
         await message.reply('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "/question ваш вопрос"')
     
-@dp.message_handler(state=Answer.boltun_question)
+@dp.message_handler(state=User_Panel.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     global BOLTUN_PATTERN
     await state.update_data(question=message.text) 
     Global_Data_Storage.question_temp_inf = message.text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
-    await Answer.boltun_reply.set()
+    await User_Panel.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90:
@@ -71,7 +71,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 reply_status='TRUE',
                 similarity_rate=similarity_rate
                 )
-            await Answer.boltun_reply.set()
+            await User_Panel.boltun_reply.set()
     else:
         # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
         await db.add_question(user_id=message.from_user.id, 
@@ -83,9 +83,9 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
         await state.finish()
         await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
-@dp.message_handler(text = "Не нашел подходящего вопроса", state=Answer.boltun_reply)
+@dp.message_handler(text = "Не нашел подходящего вопроса", state=User_Panel.boltun_reply)
 async def redirect_question(message: types.Message, state: FSMContext):
-    await Answer.making_question.set()
+    await User_Panel.making_question.set()
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
     question_id = await db.add_question(user_id=message.from_user.id, 
                                         user_name=message.from_user.full_name, 
@@ -99,7 +99,7 @@ async def redirect_question(message: types.Message, state: FSMContext):
     await state.finish()
     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
-@dp.message_handler(text = "Вернуться к выбору", state=Answer.boltun_reply)
+@dp.message_handler(text = "Вернуться к выбору", state=User_Panel.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
 # он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
 async def on_reply_processing(message: types.Message):
@@ -115,12 +115,12 @@ async def on_reply_processing(message: types.Message):
     # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
 
-@dp.message_handler(text = "Завершить процесс", state=Answer.boltun_reply)
+@dp.message_handler(text = "Завершить процесс", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
     await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
     await state.finish()
 
-@dp.message_handler(text = "Меня не устроил ответ", state=Answer.boltun_reply)
+@dp.message_handler(text = "Меня не устроил ответ", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question = await db.get_fuzzy_id(user_id=user_id)
@@ -145,7 +145,7 @@ async def process_question_command(message: types.Message):
         chat_type = message.chat.type
         supergroup_id = message.chat.id
         question = message.text.split('/question')[-1]
-        question_id = await db.add_question(user_id=message.from_user.id, 
+        await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id,
                                             question=question,
@@ -155,7 +155,7 @@ async def process_question_command(message: types.Message):
     else:
         await message.answer('Неверный формат')
 
-@dp.message_handler(state=Answer.making_question)
+@dp.message_handler(state=User_Panel.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
     question_id = await db.add_question(message.from_user.id, 
@@ -173,7 +173,7 @@ async def process_question_button(message: types.Message, state: FSMContext):
 async def back_to_start(message: types.Message, state: FSMContext):
     await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
 
-@dp.message_handler(state=Answer.check_fio)
+@dp.message_handler(state=User_Panel.check_fio)
 async def checking_fio(message: types.Message, state: FSMContext):
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
@@ -188,7 +188,7 @@ async def checking_fio(message: types.Message, state: FSMContext):
 https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru''')
     await state.finish()
 
-@dp.message_handler(state=Answer.check_snils)
+@dp.message_handler(state=User_Panel.check_snils)
 async def process_check_programm(message: types.Message, state: FSMContext):
     await message.answer('Ожидайте ответа')
     name = message.text.strip()

@@ -1,9 +1,11 @@
 from main import dp, bot, db
 from aiogram import types
-from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
-from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
+from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
+from additional_functions import file_reader, fuzzy_handler
 from keyboards import Boltun_Step_Back, Boltun_Keys
-from user_message_handlers import Global_Data_Storage, Answer, cache
+from user_message_handlers import Global_Data_Storage, cache
+from keyboards import glavnoe_menu_keyboard, Boltun_Step_Back, check_programm_keyboard
+from states import User_Panel
 
 import json
 from aiogram.dispatcher import FSMContext
@@ -58,9 +60,27 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
         except UnboundLocalError:
             await callback.answer(text="Ошибка. Просим перезапустить бота...")
 
+@dp.callback_query_handler(state=User_Panel.check_programm)
+async def program_checking(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'check_fio':
+        await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.check_fio.set()
+    elif callback.data == 'check_snils':
+        await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.check_snils.set()
 
-
-
+@dp.callback_query_handler()
+async def callback_process(callback: types.CallbackQuery):
+    if callback.data == 'make_question':
+        # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
+        await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
+        await Answer.boltun_question.set()
+    elif callback.data == 'check_programm':
+        await Answer.check_programm.set()
+        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
+                                         reply_markup=check_programm_keyboard)
 
 
 

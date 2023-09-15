@@ -99,14 +99,6 @@ class Database:
         async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
                                         WHERE id = ?''', (answer, question_id)):
             await self.connection.commit()
-            
-        # Нет смысла траты на эти вопросы токенов
-        # else:
-        #     if self.connection is None:
-        #         await self.create_connection()
-        #     async with self.connection.execute('''UPDATE fuzzy_db SET gpt_answer = ?
-        #                                     WHERE id = ?''', (answer, question_id)):
-        #         await self.connection.commit()
 
     async def get_user_id(self, question_id):
         if self.connection is None:
@@ -158,18 +150,6 @@ class Database:
                 else:
                     return None
             
-    # async def delete_question(self, question_id: int):
-    #     async with self.connection.execute('DELETE FROM admin_questions WHERE id = ?', (question_id,)):
-    #         await self.connection.execute('DELETE FROM sqlite_sequence WHERE name="questions"')
-    #         await self.connection.commit()
-
-    # async def clear_questions(self):
-    #     if self.connection is None:
-    #         await self.create_connection()
-    #     async with self.connection.execute('DELETE FROM admin_questions'):
-    #         await self.connection.execute('DELETE FROM sqlite_sequence WHERE name="questions"')
-    #         await self.connection.commit()
-
     async def get_number_of_unanswered_questions(self):
         if self.connection is None:
             await self.create_connection()
@@ -226,3 +206,4 @@ class Database:
         async with self.connection.execute('SELECT * FROM admin_questions WHERE user_id = ?', (user_id, )) as cursor:
             result = await cursor.fetchall()
             return result
+
