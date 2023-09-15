@@ -1,6 +1,5 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher.filters import Text
 import json
 
@@ -8,25 +7,14 @@ from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard
 from additional_functions import create_inline_keyboard, fuzzy_handler, check_program
-from Chat_gpt_module import answer_information
+from chat_gpt_module import answer_information
 from keyboards import Boltun_Step_Back
 from cache_container import cache
 from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
 
 db = Database()
-class Answer(StatesGroup):
-    waiting_for_answer = State()
-    making_question = State()
-    choosing_answer = State()
-    add_moder = State()
-    delete_moder = State()
-    boltun_question = State()
-    boltun_reply = State()
-    boltun_back_to_menu = State() 
-    gpt_question = State()
-    adding_to_base = State()
-    check_programm = State()
+
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -49,9 +37,7 @@ async def process_start_message(message: types.Message):
         await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
     else:
         await message.reply('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "/question ваш вопрос"')
-    # Перенести в стартовое окно
-        # answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
-        # answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК Сеченовского университета.\nНапишите свой вопрос.'
+    
 @dp.message_handler(state=Answer.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     global BOLTUN_PATTERN
@@ -169,51 +155,6 @@ async def process_question_command(message: types.Message):
         await message.reply('Вопрос был передан')
     else:
         await message.answer('Неверный формат')
-
-@dp.message_handler(state=Answer.waiting_for_answer)
-async def process_answer(message: types.Message, state: FSMContext):
-    # Получаем айди и имя модера, чтобы сохранить в бд
-    moder_id = message.from_user.id
-    moder_name = message.from_user.full_name
-    # Достаем айди вопроса, в котором должны обновить информацию/ответ
-    data = await state.get_data()
-    question_id = data.get('question_id')
-    # Из бд получаем айди пользователя, чтобы отправить ему ответ
-    user_id = await db.get_user_id(question_id)
-    # Получаем айди сообщения, чтобы наглядно было видно на какое отвечаем
-    message_id = await db.get_message_id(question_id)
-    # Получаем вид чата и его айди, чтобы отвечать в больших чатах
-    chat_type, chat_id = await db.get_chat_type_and_id(question_id)
-    question = await db.get_question(question_id=question_id)
-    await db.update_question_id(question_id, message.text, moder_id, moder_name)
-    await message.reply('Ответ отправлен')
-    if chat_type == 'supergroup':
-        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
-        await state.finish()
-    else:
-        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
-        await state.finish()
-        # Блок по добавлению в базу ответов
-    await message.answer('Внести его в базу данных вопросов?', reply_markup=question_base_keyboard)
-    await Answer.adding_to_base.set()
-    await state.update_data(question=question.get('question'), answer=message.text)
-
-@dp.message_handler(state=Answer.add_moder)
-async def process_adding_moder(message: types.Message, state: FSMContext):
-    # Обработка добавления модера, получаем айди и имя, завершаем состояние и т д
-    moder_id = message.text.split()[0]
-    moder_name = message.text.split()[1]
-    moder_role = message.text.split()[2]
-    await state.finish()
-    await db.add_new_moder(moder_id=moder_id, moder_name=moder_name, role=moder_role)
-    await message.answer('Модер добавлен', reply_markup=moder_owner_start_keyboard)
-
-@dp.message_handler(state=Answer.delete_moder)
-async def process_deleting_moder(message: types.Message, state: FSMContext):
-    # Тоже самое, что и с добавлением
-    await db.delete_moder(message.text)
-    await state.finish()
-    await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
 
 @dp.message_handler(state=Answer.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):

@@ -90,9 +90,7 @@ async def check_program(name):
     path = '/home/admin2/Рабочий стол/Bot for CK/programs.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
-    full_name = name.split()
-    full_name = [word.capitalize() for word in full_name]
-    full_name = ' '.join(full_name)
+    full_name = ' '.join([word.capitalize() for word in name.split()])
     
     consortium_options = ['Да', 'Соглашение', 'СУ']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
