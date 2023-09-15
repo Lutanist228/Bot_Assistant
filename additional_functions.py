@@ -88,10 +88,10 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_2.xlsx'
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_4.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
-    consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да']
+    consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
     if method_check == 'fio':
         full_name = name.split()

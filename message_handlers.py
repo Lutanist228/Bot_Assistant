@@ -237,30 +237,38 @@ async def back_to_start(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Answer.check_fio)
 async def checking_fio(message: types.Message, state: FSMContext):
+    video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
     result = await check_program(name, method_check='fio')
     if result == 'Нет в зачислении':
         await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
     else:
-        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе', reply_markup=user_keyboard)
+        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
 Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
 Пройдите, пожалуйста, регистрацию на сайте
-https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru''')
+https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
+        with open(video_path, 'rb') as video_file:
+            video = types.InputFile(video_file)
+            await bot.send_video(chat_id=message.from_user.id, video=video)
     await state.finish()
 
 @dp.message_handler(state=Answer.check_snils)
 async def process_check_programm(message: types.Message, state: FSMContext):
+    video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
     result = await check_program(name, method_check='snils')
     if result == 'Нет в зачислении':
         await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
     else:
-        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе', reply_markup=user_keyboard)
+        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
 Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
 Пройдите, пожалуйста, регистрацию на сайте
-https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru''')
+https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видое с регистрацией''')
+        with open(video_path, 'rb') as video_file:
+            video = types.InputFile(video_file)
+            await bot.send_video(chat_id=message.from_user.id, video=video)
     await state.finish()
