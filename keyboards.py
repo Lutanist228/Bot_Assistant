@@ -13,11 +13,15 @@ glavnoe_menu_keyboard.add(glavnoe_menu_button)
 #                                             USER
 #----------------------------------------------------------------------------------------------------------------
 user_keyboard = InlineKeyboardMarkup(row_width=2)
+check_programm_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
-check_programm_in_base = InlineKeyboardButton(text='Проверить программу', callback_data='check_programm')
+check_programm_in_base = InlineKeyboardButton(text='Проверить зачисление', callback_data='check_programm')
 instruction_button = InlineKeyboardButton(text='Инструкция по взаимодействию', callback_data='instruction')
+fio_check = InlineKeyboardButton(text='Проверить по ФИО', callback_data='check_fio')
+snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='check_snils')
 
+check_programm_keyboard.add(fio_check, snils_check, glavnoe_menu_button)
 user_keyboard.add(question_button, check_programm_in_base, instruction_button)
 
 class Boltun_Step_Back:
@@ -59,18 +63,20 @@ delete_moder = InlineKeyboardButton(text='Удалить модера', callback
 generate_answer = InlineKeyboardButton(text='Сгенерировать ответ', callback_data='generate_answer')
 do_not_generate_answer = InlineKeyboardButton(text='Не генерировать', callback_data='do_not_generate_answer')
 upload_database = InlineKeyboardButton(text='Выгрузить базу', callback_data='upload_base')
+check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
 
 moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question)
 moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder, upload_database)
-generate_answer_keyboard.add(generate_answer, do_not_generate_answer, glavnoe_menu_button)
+generate_answer_keyboard.add(generate_answer, do_not_generate_answer, check_history, glavnoe_menu_button)
 
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)
 
-choose_question = InlineKeyboardButton(text='Выбрать вопрос', callback_data='choose_answer')
+choose_question = InlineKeyboardButton(text='Выбрать вопрос', callback_data='choose_question')
 back = InlineKeyboardButton(text='Назад', callback_data='back')
+close_question = InlineKeyboardButton(text='Закрыть вопрос', callback_data='close_question')
 
-moder_choose_question_keyboard.add(choose_question, back)
+moder_choose_question_keyboard.add(choose_question, close_question, back)
 
 question_base_keyboard = InlineKeyboardMarkup(row_width=2)
 

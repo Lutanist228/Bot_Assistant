@@ -212,3 +212,17 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('DELETE FROM moder_information WHERE moder_id = ?', (moder_id,)):
             await self.connection.commit()
+
+    async def check_question(self, question_id: int):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT answer FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
+            result = await cursor.fetchone()
+            return result
+        
+    async def check_history(self, user_id: int, ):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT * FROM admin_questions WHERE user_id = ?', (user_id, )) as cursor:
+            result = await cursor.fetchall()
+            return result

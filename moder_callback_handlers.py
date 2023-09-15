@@ -44,8 +44,8 @@ async def callback_process(callback: types.CallbackQuery):
         pass
     elif callback.data == 'check_programm':
         await Answer.check_programm.set()
-        await callback.message.edit_text('Введите свое ФИО, чтобы проверить вашу программу на зачисление', 
-                                         reply_markup=glavnoe_menu_keyboard)
+        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
+                                         reply_markup=check_programm_keyboard)
         
 @dp.callback_query_handler(Text('back'), state=Answer.choosing_answer)
 async def back_process(callback: types.CallbackQuery, state: FSMContext):
@@ -60,7 +60,7 @@ async def back_process(callback: types.CallbackQuery, state: FSMContext):
 @dp.callback_query_handler(state=Answer.choosing_answer)
 async def process_choosing_answer(callback: types.CallbackQuery, state: FSMContext):
     # Обработка и вывод информации по клику на определенный вопрос
-    if 'question' in callback.data:
+    if 'question:' in callback.data:
         callback_data = callback.data.split(':')[1]
         from additional_functions import cache
         # Получаем информацию по определенному вопросу и выводим
@@ -74,12 +74,34 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
         await state.update_data(question_id=callback_data)
         await callback.message.edit_text(result, reply_markup=moder_choose_question_keyboard)
     # Обработка выбора определенного вопроса
-    elif callback.data == 'choose_answer':
+    elif callback.data == 'choose_question':
         markup = InlineKeyboardMarkup()
-        await callback.message.edit_reply_markup(reply_markup=markup)
-        await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
-                                      reply_markup=generate_answer_keyboard)
-        await Answer.waiting_for_answer.set()
+        data = await state.get_data()
+        question_id = data['question_id']
+        moder_id = callback.from_user.id
+        moder_name = callback.from_user.full_name
+        result_check = await db.check_question(question_id=question_id)
+        if result_check[0] == 'Вопрос взят':
+            await callback.message.edit_text('Выбери другой вопрос', reply_markup=glavnoe_menu_keyboard)
+        else:
+            await db.update_question_id(question_id=question_id, 
+                    answer='Вопрос взят', 
+                    moder_id=moder_id,
+                    moder_name=moder_name)
+            await callback.message.edit_reply_markup(reply_markup=markup)
+            await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                                            reply_markup=generate_answer_keyboard)
+            await Answer.waiting_for_answer.set()
+    elif callback.data == 'close_question':
+        data = await state.get_data()
+        question_id = data['question_id']
+        moder_id = callback.from_user.id
+        moder_name = callback.from_user.full_name
+        await db.update_question_id(question_id=question_id, 
+                                    answer='Закрытие вопроса', 
+                                    moder_id=moder_id,
+                                    moder_name=moder_name)
+        await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
 
 @dp.callback_query_handler(state=Answer.waiting_for_answer)
 async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
@@ -93,6 +115,18 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer(f'Сгенерированный ответ:\n{answer}')
     elif callback.data == 'do_not_generate_answer':
         await callback.message.delete()
+    elif callback.data == 'check_history':
+        data = await state.get_data()
+        question_id = data['question_id']
+        user_id = await db.get_user_id(question_id=question_id)
+        questions = await db.check_history(user_id=user_id)
+        history = ''
+        for question in questions:
+            if question[6] == 'Вопрос взят':
+                continue
+            history += f'Вопрос: {question[4]}\nОтвет: {question[6]}\n\n'
+        await callback.message.edit_text(f'{history} Введите свой ответ или вернитесь в главное меню', 
+                                         reply_markup=glavnoe_menu_keyboard)
 
 @dp.callback_query_handler(state=Answer.adding_to_base)
 async def process_base_answers(callback: types.CallbackQuery, state: FSMContext):
@@ -110,10 +144,13 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
         await state.finish()
         await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
 
-
-
-
-
-
-
-
+@dp.callback_query_handler(state=Answer.check_programm)
+async def program_checking(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'check_fio':
+        await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await Answer.check_fio.set()
+    elif callback.data == 'check_snils':
+        await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                         reply_markup=glavnoe_menu_keyboard)
+        await Answer.check_snils.set()
