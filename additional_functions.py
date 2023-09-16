@@ -5,7 +5,7 @@ from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
 import pandas as pd
-import re
+from functools import reduce 
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -54,11 +54,19 @@ def fuzzy_handler(boltun_text: list, user_question: str):
             if(max_similarity_rate < current_similarity_rate and max_similarity_rate != current_similarity_rate):
                 max_similarity_rate = current_similarity_rate
                 index = number
+
     sample = boltun_text_orig[index + 1]
 
     if max_similarity_rate < 50:
         sample = "Not Found"
-
+    if max_similarity_rate == 100:
+        text = "" ; num = 0 ; sample = []
+        while "u:" not in text:
+            num += 1
+            text = boltun_text_orig[index + num]
+            sample.append(text)
+        sample.pop()
+        sample = ''.join(sample)
     return sample, max_similarity_rate, inline_questions     
 
 async def create_inline_keyboard(rows):
