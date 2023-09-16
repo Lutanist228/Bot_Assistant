@@ -22,9 +22,7 @@ def on_shutdown(_):
     print('Бот выключен!')
 
 if __name__ == '__main__':
-    from user_message_handlers import dp
-    from user_callback_handlers import dp
-    from moder_message_handlers import dp
-    from moder_callback_handlers import dp
+    from user_handlers import dp
+    from moder_handlers import dp
     
     executor.start_polling(dispatcher=dp, skip_updates=True, on_startup=lambda dp: on_startup_wrapper(dp), on_shutdown=on_shutdown)

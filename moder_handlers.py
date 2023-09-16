@@ -1,16 +1,81 @@
-from main import dp
 from aiogram import types
-from additional_functions import create_inline_keyboard, file_reader, save_to_txt
-from user_message_handlers import db
-from keyboards import moder_choose_question_keyboard, glavnoe_menu_keyboard, generate_answer_keyboard
-from chat_gpt_module import answer_information
-from user_message_handlers import BOLTUN_PATTERN
-from states import Moder_Panel
-
-from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
-import json 
+import json
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher.filters import Text
+
+from main import dp, bot, db
+from keyboards import Boltun_Step_Back, moder_owner_start_keyboard, question_base_keyboard, moder_start_keyboard
+from keyboards import glavnoe_menu_keyboard, generate_answer_keyboard, moder_choose_question_keyboard
+from states import Moder_Panel
+from additional_functions import create_inline_keyboard, file_reader, save_to_txt
+from chat_gpt_module import answer_information
+
+
+#____________________________MESSAGE__HANDLERS_______________________________________________________________________________
+
+@dp.message_handler(commands=['start'])
+async def process_start_message(message: types.Message):
+    if message.chat.type == 'private':
+    # Достаем айдишники модеров, чтобы проверить пользователя кем он является
+        moder_ids = await db.get_moder()
+        for id in moder_ids:
+            if message.from_user.id == id[0]:
+                # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
+                if id[1] == 'Owner':
+                    await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+                else:
+                    await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
+                return
+            
+@dp.message_handler(state=Moder_Panel.waiting_for_answer)
+async def process_answer(message: types.Message, state: FSMContext):
+    # Получаем айди и имя модера, чтобы сохранить в бд
+    moder_id = message.from_user.id
+    moder_name = message.from_user.full_name
+    # Достаем айди вопроса, в котором должны обновить информацию/ответ
+    data = await state.get_data()
+    question_id = data.get('question_id')
+    # Из бд получаем айди пользователя, чтобы отправить ему ответ
+    user_id = await db.get_user_id(question_id)
+    # Получаем айди сообщения, чтобы наглядно было видно на какое отвечаем
+    message_id = await db.get_message_id(question_id)
+    # Получаем вид чата и его айди, чтобы отвечать в больших чатах
+    chat_type, chat_id = await db.get_chat_type_and_id(question_id)
+    question = await db.get_question(question_id=question_id)
+    await db.update_question_id(question_id, message.text, moder_id, moder_name)
+    await message.reply('Ответ отправлен')
+    if chat_type == 'supergroup':
+        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        await state.finish()
+    else:
+        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
+        await state.finish()
+        # Блок по добавлению в базу ответов
+    await message.answer('Внести его в базу данных вопросов?', reply_markup=question_base_keyboard)
+    await Moder_Panel.adding_to_base.set()
+    await state.update_data(question=question.get('question'), answer=message.text)
+
+@dp.message_handler(state=Moder_Panel.add_moder)
+async def process_adding_moder(message: types.Message, state: FSMContext):
+    # Обработка добавления модера, получаем айди и имя, завершаем состояние и т д
+    moder_id = message.text.split()[0]
+    moder_name = message.text.split()[1]
+    moder_role = message.text.split()[2]
+    await state.finish()
+    await db.add_new_moder(moder_id=moder_id, moder_name=moder_name, role=moder_role)
+    await message.answer('Модер добавлен', reply_markup=moder_owner_start_keyboard)
+
+@dp.message_handler(state=Moder_Panel.delete_moder)
+async def process_deleting_moder(message: types.Message, state: FSMContext):
+    # Тоже самое, что и с добавлением
+    await db.delete_moder(message.text)
+    await state.finish()
+    await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
+
+#____________________________MESSAGE__HANDLERS_______________________________________________________________________________
+
+#____________________________CALLBACK_HANDLERS__________________________________________________________________________________
 
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery):
@@ -134,4 +199,23 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
     elif callback.data == 'do_not_add_to_base':
         await state.finish()
         await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+
+@dp.callback_query_handler(Text('glavnoe_menu'), state='*')
+async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
+    # Обработка возврата в главное меню для всех
+    user_id = callback.from_user.id
+    moder_ids = await db.get_moder()
+    await state.finish()
+    for id in moder_ids:
+        if user_id == id[0]:
+            if id[1] == 'Owner':
+                await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+            else:
+                await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_start_keyboard)
+            return
+
+#____________________________CALLBACK_HANDLERS__________________________________________________________________________________
+
+
+
 
