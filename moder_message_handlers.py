@@ -3,9 +3,23 @@ from aiogram.dispatcher import FSMContext
 
 from main import dp, bot
 from user_message_handlers import db
-from keyboards import Boltun_Step_Back, moder_owner_start_keyboard, question_base_keyboard
+from keyboards import Boltun_Step_Back, moder_owner_start_keyboard, question_base_keyboard, moder_start_keyboard
 from states import Moder_Panel
 
+@dp.message_handler(commands=['start'])
+async def process_start_message(message: types.Message):
+    if message.chat.type == 'private':
+    # Достаем айдишники модеров, чтобы проверить пользователя кем он является
+        moder_ids = await db.get_moder()
+        for id in moder_ids:
+            if message.from_user.id == id[0]:
+                # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
+                if id[1] == 'Owner':
+                    await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+                else:
+                    await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
+                return
+            
 @dp.message_handler(state=Moder_Panel.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
     # Получаем айди и имя модера, чтобы сохранить в бд

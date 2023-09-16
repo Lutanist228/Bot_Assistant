@@ -56,7 +56,7 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
                 reply_status='TRUE',
                 similarity_rate=similarity_rate
                 )
-            await Answer.boltun_reply.set()
+            await User_Panel.boltun_reply.set()
         except UnboundLocalError:
             await callback.answer(text="Ошибка. Просим перезапустить бота...")
 
