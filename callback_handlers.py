@@ -173,6 +173,7 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer(f'Сгенерированный ответ:\n{answer}')
     elif callback.data == 'do_not_generate_answer':
         await callback.message.delete()
+        await callback.message.answer('Напишите свой ответ', reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'check_history':
         data = await state.get_data()
         question_id = data['question_id']

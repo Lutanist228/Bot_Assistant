@@ -3,7 +3,7 @@ import re
 
 def format_excel():
         # Откройте существующий файл Excel
-    workbook = openpyxl.load_workbook('C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant\\test_3.xlsx')
+    workbook = openpyxl.load_workbook('C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant\\test_7.xlsx')
 
     # Выберите нужный лист и столбец (например, столбец A)
     worksheet = workbook.active
@@ -23,6 +23,6 @@ def format_excel():
             cell.value = formatted_snils  # Установка исправленного значения
 
     # Сохраните изменения в файл
-    workbook.save('programs_edit_4.xlsx')
+    workbook.save('programs_edit_8.xlsx')
 
 format_excel()

@@ -1,14 +1,12 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.dispatcher.filters import Text
 import json
 
 from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard
-from additional_functions import create_inline_keyboard, fuzzy_handler, check_program
-from Chat_gpt_module import answer_information
+from additional_functions import fuzzy_handler, check_program
 from keyboards import Boltun_Step_Back
 from cache_container import cache
 from config_file import BOLTUN_PATTERN
@@ -51,9 +49,7 @@ async def process_start_message(message: types.Message):
         await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
     else:
         await message.reply('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "/question ваш вопрос"')
-    # Перенести в стартовое окно
-        # answer =  'Вас приветствует тестовый Бот "Кафедры информационных и интернет-технологий"'
-        # answer =  'Я могу отвечать на простые вопросы, связанные с процессом обучения на программах ЦК Сеченовского университета.\nНапишите свой вопрос.'
+
 @dp.message_handler(state=Answer.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     global BOLTUN_PATTERN
@@ -109,10 +105,6 @@ async def redirect_question(message: types.Message, state: FSMContext):
                                         message_id=message.message_id, 
                                         question=Global_Data_Storage.question_temp_inf,
                                         chat_type=message.chat.type)
-    # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
-    # Активация блока Chat gpt
-    answer = await answer_information(Global_Data_Storage.question_temp_inf)
-    await db.update_gpt_answer(question_id=question_id, answer=answer)
     await state.finish()
     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
@@ -141,18 +133,12 @@ async def quitting(message: types.Message, state: FSMContext):
 async def quitting(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question = await db.get_fuzzy_id(user_id=user_id)
-    # В это строке нет смысла, как и в переделке функции get_question. Так как ты ее только здесь используешь
-    # И можешь сразу ловить вопрос
-    # question_extract = await db.get_question(question_id=question_id_extract, data_base_type="fuzzy_db")
-# Поменял здесь блок кода
     user_name = message.from_user.full_name
     question_id = await db.add_question(user_id=user_id, 
                                         user_name=user_name, 
                                         question=question[0], 
                                         chat_type=message.chat.type, 
                                         message_id=message.message_id)
-    answer = await answer_information(question[0])
-    await db.update_gpt_answer(question_id=question_id, answer=answer)
     await message.reply('Вопрос был передан')
 
 @dp.message_handler(commands=['question'])
@@ -224,10 +210,6 @@ async def process_question_button(message: types.Message, state: FSMContext):
                                         message.from_user.full_name, 
                                         message.text, chat_type=message.chat.type, 
                                         message_id=message.message_id)
-    # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
-    # Активация блока Chat gpt
-    answer = await answer_information(message.text)
-    await db.update_gpt_answer(question_id=question_id, answer=answer)
     await state.finish()
     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
@@ -237,7 +219,7 @@ async def back_to_start(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Answer.check_fio)
 async def checking_fio(message: types.Message, state: FSMContext):
-    video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
+    # video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
     result = await check_program(name, method_check='fio')
@@ -249,14 +231,14 @@ async def checking_fio(message: types.Message, state: FSMContext):
 Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
 Пройдите, пожалуйста, регистрацию на сайте
 https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
-        with open(video_path, 'rb') as video_file:
-            video = types.InputFile(video_file)
-            await bot.send_video(chat_id=message.from_user.id, video=video)
+        await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
+        # with open(video_path, 'rb') as video_file:
+        #     video = types.InputFile(video_file)
+        #     await bot.send_video(chat_id=message.from_user.id, video=video)
     await state.finish()
 
 @dp.message_handler(state=Answer.check_snils)
 async def process_check_programm(message: types.Message, state: FSMContext):
-    video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
     result = await check_program(name, method_check='snils')
@@ -267,8 +249,6 @@ async def process_check_programm(message: types.Message, state: FSMContext):
         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
 Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
 Пройдите, пожалуйста, регистрацию на сайте
-https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видое с регистрацией''')
-        with open(video_path, 'rb') as video_file:
-            video = types.InputFile(video_file)
-            await bot.send_video(chat_id=message.from_user.id, video=video)
+https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
+        await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
     await state.finish()

@@ -88,7 +88,7 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_4.xlsx'
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_10.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА']
@@ -102,6 +102,13 @@ async def check_program(name: str, method_check: str):
                                     (programs['Консорциум'].isin(consortium_options)) &
                                     (programs['Статус'].isin(status_options))]['Программа'].tolist()
     elif method_check == 'snils':
+        snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
+        if not snils_pattern.match(str(name)):
+            # Если ячейка не соответствует формату СНИЛСа, исправьте ее
+            cleaned_snils = re.sub(r'\D', '', str(name))  # Удаление всех нецифровых символов
+            formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
+            name = formatted_snils  # Установка исправленного значения
+
         # Собираем СНИЛС с разделителями
         data_to_check = programs.loc[(programs['СНИЛС'] == name) &
                                     (programs['Консорциум'].isin(consortium_options)) &
