@@ -1,11 +1,13 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
+from aiogram.utils.exceptions import TelegramAPIError
+from aiogram.utils import exceptions
 import json
 
 from db_actions import Database
 from main import dp, bot
-from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard
+from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard, glavnoe_menu_keyboard
 from additional_functions import fuzzy_handler, check_program
 from keyboards import Boltun_Step_Back
 from cache_container import cache
@@ -264,3 +266,9 @@ async def process_deleting_moder(message: types.Message, state: FSMContext):
     await db.delete_moder(message.text)
     await state.finish()
     await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
+
+@dp.errors_handler(exception=TelegramAPIError)
+async def process_errors(update: types.Update, exception: exceptions):
+    if isinstance(exception, exceptions.BotBlocked):
+        await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
+                                    reply_markup=glavnoe_menu_keyboard)

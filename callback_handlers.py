@@ -6,7 +6,7 @@ from additional_functions import create_inline_keyboard, file_reader, save_to_tx
 from message_handlers import Answer, db, Global_Data_Storage, cache
 from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
 from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
-from chat_gpt_module import answer_information
+from Chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN
 
 from aiogram.types import InlineKeyboardMarkup
