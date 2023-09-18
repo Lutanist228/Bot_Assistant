@@ -63,11 +63,15 @@ delete_moder = InlineKeyboardButton(text='Удалить модера', callback
 generate_answer = InlineKeyboardButton(text='Сгенерировать ответ', callback_data='generate_answer')
 do_not_generate_answer = InlineKeyboardButton(text='Не генерировать', callback_data='do_not_generate_answer')
 upload_database = InlineKeyboardButton(text='Выгрузить базу', callback_data='upload_base')
-check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
+check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history')
+make_announcement = InlineKeyboardButton(text='Сделать объявление', callback_data='make_announcement')
 
 moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question)
-moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder, upload_database)
-generate_answer_keyboard.add(generate_answer, do_not_generate_answer, check_history, glavnoe_menu_button)
+moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
+                               add_moder, delete_moder, 
+                               make_announcement, upload_database)
+generate_answer_keyboard.add(generate_answer, do_not_generate_answer, 
+                             check_history, glavnoe_menu_button)
 
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)
@@ -84,3 +88,12 @@ question_yes = InlineKeyboardButton(text='Да', callback_data='add_to_base')
 question_no = InlineKeyboardButton(text='Нет', callback_data='do_not_add_to_base')
 
 question_base_keyboard.add(question_yes, question_no)
+
+announcement_keyboard = InlineKeyboardMarkup(row_width=2)
+
+private_announcement = InlineKeyboardButton(text='В личные сообщения', callback_data='private_announcement')
+supergroup_announcement = InlineKeyboardButton(text='В чате канала', callback_data='supergroup_announcement')
+both_announcement = InlineKeyboardButton(text='В ЛС и в чат канала', callback_data='both_announcement')
+
+announcement_keyboard.add(private_announcement, supergroup_announcement,
+                          both_announcement)

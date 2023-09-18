@@ -19,8 +19,10 @@ class Database:
                                user_name TEXT,
                                message_id INTEGER,
                                question TEXT,
+                               quarry_date REAL NULL,
                                gpt_answer TEXT DEFAULT NULL,
                                answer TEXT DEFAULT NULL,
+                               moder_answer_date REAL NULL,
                                moder_id INTEGER,
                                moder_name TEXT,
                                chat_type TEXT,
@@ -30,12 +32,17 @@ class Database:
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 message_id INTEGER,
-                quarry_date TEXT, 
                 question_text TEXT NULL,
+                quarry_date REAL NULL, 
                 reply_text TEXT NULL,
                 similarity_rate INTEGER DEFAULT 0,
                 reply_received TEXT NOT NULL DEFAULT 'FALSE'
                 )""")
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS checked_ids (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name TEXT)''')
             
     async def create_infromation_about_moder(self):
         async with aiosqlite.connect('database.db') as conn:
@@ -60,7 +67,7 @@ class Database:
         if self.connection is None:
             await self.create_connection()
         if data_base_type == "admin_questions":    
-            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id) VALUES (?, ?, ?, ?, ?, ?)', 
+            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id, quarry_date) VALUES (?, ?, ?, ?, ?, ?, datetime(julianday("now", "+3 hours")))', 
                                                (user_id, user_name, message_id, question, chat_type, supergroup_id)) as cursor:
                     question_id = cursor.lastrowid
                     await self.connection.commit()
@@ -88,7 +95,8 @@ class Database:
     async def update_question_id(self, question_id: int, answer: str, moder_id: int, moder_name: str):
         async with self.connection.execute('''UPDATE admin_questions SET answer = ?, 
                                            moder_id = ?, 
-                                           moder_name = ? 
+                                           moder_name = ?,
+                                           moder_answer_date = datetime(julianday("now", "+3 hours"))
                                            WHERE id = ?''', (answer, moder_id,
                                                              moder_name, question_id)):
             await self.connection.commit()
@@ -99,14 +107,6 @@ class Database:
         async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
                                         WHERE id = ?''', (answer, question_id)):
             await self.connection.commit()
-            
-        # Нет смысла траты на эти вопросы токенов
-        # else:
-        #     if self.connection is None:
-        #         await self.create_connection()
-        #     async with self.connection.execute('''UPDATE fuzzy_db SET gpt_answer = ?
-        #                                     WHERE id = ?''', (answer, question_id)):
-        #         await self.connection.commit()
 
     async def get_user_id(self, question_id):
         if self.connection is None:
@@ -226,3 +226,18 @@ class Database:
         async with self.connection.execute('SELECT * FROM admin_questions WHERE user_id = ?', (user_id, )) as cursor:
             result = await cursor.fetchall()
             return result
+        
+    async def get_ids_for_announcement(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT user_id FROM admin_questions') as cursor:
+            result_1 = await cursor.fetchall()
+        async with self.connection.execute('SELECT user_id FROM fuzzy_db') as cursor:
+            result_2 = await cursor.fetchall()
+        return result_1 + result_2
+    
+    async def add_checked_id(self, user_id: int, user_name: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('INSERT INTO checked_ids (user_id, user_name) VALUES (?, ?)', (user_id, user_name)):
+            await self.connection.commit()

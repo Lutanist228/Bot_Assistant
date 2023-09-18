@@ -8,6 +8,7 @@ import json
 from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard, glavnoe_menu_keyboard
+from keyboards import announcement_keyboard
 from additional_functions import fuzzy_handler, check_program
 from keyboards import Boltun_Step_Back
 from cache_container import cache
@@ -29,6 +30,7 @@ class Answer(StatesGroup):
     check_programm = State()
     check_fio = State()
     check_snils = State()
+    make_announcement = State()
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -199,6 +201,8 @@ async def checking_fio(message: types.Message, state: FSMContext):
 Пройдите, пожалуйста, регистрацию на сайте
 https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
+        await db.add_checked_id(user_id=message.from_user.id,
+                                user_name=message.from_user.full_name)
         # with open(video_path, 'rb') as video_file:
         #     video = types.InputFile(video_file)
         #     await bot.send_video(chat_id=message.from_user.id, video=video)
@@ -218,6 +222,8 @@ async def process_check_programm(message: types.Message, state: FSMContext):
 Пройдите, пожалуйста, регистрацию на сайте
 https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
+        await db.add_checked_id(user_id=message.from_user.id,
+                            user_name=message.from_user.full_name)
     await state.finish()
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
@@ -266,6 +272,14 @@ async def process_deleting_moder(message: types.Message, state: FSMContext):
     await db.delete_moder(message.text)
     await state.finish()
     await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
+
+@dp.message_handler(state=Answer.make_announcement)
+async def process_announcement(message: types.Message, state: FSMContext):
+    announcement = message.text
+    await state.update_data(announcement_text=announcement)
+    await message.answer('Выберите тип публикации', reply_markup=announcement_keyboard)
+
+#------------------------------------------ERROR HANDLERS-----------------------------------------------
 
 @dp.errors_handler(exception=TelegramAPIError)
 async def process_errors(update: types.Update, exception: exceptions):

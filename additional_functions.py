@@ -88,7 +88,7 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_10.xlsx'
+    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-1\\programs_edit_11.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА']

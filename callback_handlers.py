@@ -72,6 +72,9 @@ async def callback_process(callback: types.CallbackQuery):
         await Answer.check_programm.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
                                          reply_markup=check_programm_keyboard)
+    elif callback.data == 'make_announcement':
+        await Answer.make_announcement.set()
+        await callback.message.edit_text('Введите сообщение, которое хотите сделать объявлением')
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -199,9 +202,9 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
         questions = await db.check_history(user_id=user_id)
         history = ''
         for question in questions:
-            if question[6] == 'Вопрос взят':
+            if question[7] == 'Вопрос взят':
                 continue
-            history += f'Вопрос: {question[4]}\nОтвет: {question[6]}\n\n'
+            history += f'Вопрос: {question[4]}\nОтвет: {question[7]}\n\n'
         await callback.message.edit_text(f'{history} Введите свой ответ или вернитесь в главное меню', 
                                          reply_markup=glavnoe_menu_keyboard)
 
@@ -221,3 +224,13 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
     elif callback.data == 'do_not_add_to_base':
         await state.finish()
         await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+
+@dp.callback_query_handler(state=Answer.make_announcement)
+async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    announcement = data['announcement_text']
+    ids_to_send = set()
+    if callback.data == 'private_announcement':
+        ids = await db.get_ids_for_announcement()
+        for id in ids:
+            ids_to_send.add(id[0])
