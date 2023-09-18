@@ -129,8 +129,8 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('SELECT * FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
             rows = await cursor.fetchall()
-            chat_type = rows[0][9]
-            chat_id = rows[0][10]
+            chat_type = rows[0][11]
+            chat_id = rows[0][12]
             return chat_type, chat_id
         
     async def get_all_questions(self):
@@ -241,3 +241,10 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('INSERT INTO checked_ids (user_id, user_name) VALUES (?, ?)', (user_id, user_name)):
             await self.connection.commit()
+
+    async def get_checked_ids(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT user_id FROM checked_ids') as cursor:
+            result = await cursor.fetchall()  
+            return result

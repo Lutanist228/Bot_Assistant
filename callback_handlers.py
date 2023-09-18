@@ -13,6 +13,7 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
 import json
 from aiogram.dispatcher.filters import Text
+from aiogram.utils import exceptions
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
@@ -230,7 +231,37 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
     data = await state.get_data()
     announcement = data['announcement_text']
     ids_to_send = set()
+    supergroup_ids = [-1001821625858]
     if callback.data == 'private_announcement':
-        ids = await db.get_ids_for_announcement()
+        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
             ids_to_send.add(id[0])
+
+        for id_to_send in ids_to_send:
+            try:
+                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
+            except exceptions.BotBlocked:
+                continue
+        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+                                         reply_markup=glavnoe_menu_keyboard)
+    elif callback.data == 'supergroup_announcement':
+        for supergroup in supergroup_ids:
+            await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
+        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+                                    reply_markup=glavnoe_menu_keyboard)
+    elif callback.data == 'both_announcement':
+        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
+        for id in ids:
+            ids_to_send.add(id[0])
+
+        for id_to_send in ids_to_send:
+            try:
+                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
+            except exceptions.BotBlocked:
+                continue
+        
+        for supergroup in supergroup_ids:
+            await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
+            
+        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+                                reply_markup=glavnoe_menu_keyboard)
