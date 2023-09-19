@@ -242,7 +242,7 @@ async def process_answer(message: types.Message, state: FSMContext):
         await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
         await state.finish()
     else:
-        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, reply_markup=Boltun_Step_Back.kb_return_to_start)
+        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
         await state.finish()
         # Блок по добавлению в базу ответов
     await message.answer('Внести его в базу данных вопросов?', reply_markup=question_base_keyboard)
