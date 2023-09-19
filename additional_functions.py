@@ -75,7 +75,7 @@ async def create_inline_keyboard(rows):
     for row in rows:
         question_id = str(row[0])
         username = row[2]
-        question = row[6]
+        question = row[4]
         data = {'username': username,
                 'question': question}
         # Переводим данные в json формат
@@ -95,10 +95,10 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-1\\programs_edit_11.xlsx'
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_13.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
-    consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА']
+    consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА', 'да?', 'ДА?']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
     if method_check == 'fio':
         full_name = name.split()

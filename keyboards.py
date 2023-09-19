@@ -21,8 +21,10 @@ user_instruction = InlineKeyboardButton(text='Инструкция по взаи
 fio_check = InlineKeyboardButton(text='Проверить по ФИО', callback_data='check_fio')
 snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='check_snils')
 
-check_programm_keyboard.add(fio_check, snils_check, glavnoe_menu_button)
-user_keyboard.add(question_button, check_programm_in_base, user_instruction)
+check_programm_keyboard.add(fio_check, snils_check, 
+                            glavnoe_menu_button)
+user_keyboard.add(question_button, check_programm_in_base, 
+                  user_instruction)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
@@ -66,7 +68,8 @@ upload_database = InlineKeyboardButton(text='Выгрузить базу', callb
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
 moder_instruction = InlineKeyboardButton(text='Инструкция по взаимодействию для модераторов', callback_data='moder_instruction')
 
-common_moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question, moder_instruction, user_instruction)
+common_moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
+                                moder_instruction, user_instruction)
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history')
 make_announcement = InlineKeyboardButton(text='Сделать объявление', callback_data='make_announcement')
 
