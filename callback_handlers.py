@@ -4,7 +4,7 @@ from keyboards import Boltun_Step_Back, Boltun_Keys
 from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Global_Data_Storage, cache, db
-from keyboards import user_keyboard, moder_start_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard
+from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
 from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN
@@ -36,15 +36,22 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
             if id[1] == 'Owner':
                 await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
             else:
-                await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_start_keyboard)
+                await callback.message.edit_text('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
             return
     await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
 
 @dp.callback_query_handler()
-async def callback_process(callback: types.CallbackQuery):
-    if callback.data == 'instruction':
-        # Нужно будет написать инстуркцию
-        await callback.message.edit_text('Инструкция:\nИспользуйте кнопку "Задать вопрос", чтобы задать вопрос (пишите только текст, БЕЗ ФОТО и ДОКУМЕНТОВ)\nТакже у вас будут доступны кнопки, чтобы получить ответ от человека либо вернуться в главное меню.', reply_markup=glavnoe_menu_keyboard)
+async def callback_process(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'user_instruction':
+        with open(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\Пользовательская инструкция.pdf", 'rb') as pdf_file:
+            file = types.InputFile(pdf_file)
+            await bot.send_document(chat_id=callback.from_user.id, document=file, reply_markup=Boltun_Step_Back.kb_return_to_start)
+            await state.finish()
+    elif callback.data == 'moder_instruction':
+        with open(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\Модераторская инструкция.pdf", 'rb') as pdf_file:
+            file = types.InputFile(pdf_file)
+            await bot.send_document(chat_id=callback.from_user.id, document=file, reply_markup=Boltun_Step_Back.kb_return_to_start)
+            await state.finish()
     elif callback.data == 'make_question':
         # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
         await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
@@ -57,11 +64,12 @@ async def callback_process(callback: types.CallbackQuery):
         # Обработка нажатия модера для показа вопросов (Вопрос номер ...). И создание на основе информации из бд клавиатуры для этих вопросов
         result = await db.get_list_of_unaswered_questions()
         keyboard = await create_inline_keyboard(result)
+        Global_Data_Storage.questions_keyboard_inf = keyboard
         await callback.message.edit_text('Просмотрите и выберите вопрос', reply_markup=keyboard)
         await Moder_Panel.choosing_answer.set()
     elif callback.data == 'add_moder':
         # Добавить модера, надо сделать проверку, что именно айди и имя через пробел и т д
-        await callback.message.edit_text('Введите id и имя модератора через пробел.\n Роли: Moder и Owner', reply_markup=glavnoe_menu_keyboard)
+        await callback.message.edit_text('Введите id модератора. Роли: Moder и Owner', reply_markup=glavnoe_menu_keyboard)
         await Moder_Panel.add_moder.set()
     elif callback.data == 'delete_moder':
         # Удаление модера
@@ -70,9 +78,10 @@ async def callback_process(callback: types.CallbackQuery):
     elif callback.data =='upload_base':
         pass
     elif callback.data == 'check_programm':
-        await User_Panel.check_programm.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
                                          reply_markup=check_programm_keyboard)
+        await User_Panel.check_programm.set()
+
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -107,7 +116,6 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
             await User_Panel.boltun_reply.set()
         except UnboundLocalError:
             await callback.answer(text="Ошибка. Просим перезапустить бота...")
-
 
 @dp.callback_query_handler(state=User_Panel.check_programm)
 async def program_checking(callback: types.CallbackQuery, state: FSMContext):
@@ -200,7 +208,7 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
         for question in questions:
             if question[6] == 'Вопрос взят':
                 continue
-            history += f'Вопрос: {question[4]}\nОтвет: {question[6]}\n\n'
+            history += f'Дата-время: {question[4]}\nВопрос: {question[6]}\nОтвет: {question[8]}\n\n'
         await callback.message.edit_text(f'{history} Введите свой ответ или вернитесь в главное меню', 
                                          reply_markup=glavnoe_menu_keyboard)
 
