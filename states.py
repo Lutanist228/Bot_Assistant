@@ -16,4 +16,5 @@ class Moder_Panel(StatesGroup):
     adding_to_base = State()
     choosing_answer = State()
     waiting_for_answer = State()
+    make_announcement = State()
 
