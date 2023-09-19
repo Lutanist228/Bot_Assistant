@@ -24,5 +24,4 @@ def on_shutdown(_):
 if __name__ == '__main__':
     from message_handlers import dp
     from callback_handlers import dp
-    
     executor.start_polling(dispatcher=dp, skip_updates=True, on_startup=lambda dp: on_startup_wrapper(dp), on_shutdown=on_shutdown)

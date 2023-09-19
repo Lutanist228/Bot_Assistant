@@ -14,6 +14,7 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
 import json
 from aiogram.dispatcher.filters import Text
+from aiogram.utils import exceptions
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
@@ -64,12 +65,11 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         # Обработка нажатия модера для показа вопросов (Вопрос номер ...). И создание на основе информации из бд клавиатуры для этих вопросов
         result = await db.get_list_of_unaswered_questions()
         keyboard = await create_inline_keyboard(result)
-        Global_Data_Storage.questions_keyboard_inf = keyboard
         await callback.message.edit_text('Просмотрите и выберите вопрос', reply_markup=keyboard)
         await Moder_Panel.choosing_answer.set()
     elif callback.data == 'add_moder':
         # Добавить модера, надо сделать проверку, что именно айди и имя через пробел и т д
-        await callback.message.edit_text('Введите id модератора. Роли: Moder и Owner', reply_markup=glavnoe_menu_keyboard)
+        await callback.message.edit_text('Введите id и имя модератора через пробел.\n Роли: Moder и Owner', reply_markup=glavnoe_menu_keyboard)
         await Moder_Panel.add_moder.set()
     elif callback.data == 'delete_moder':
         # Удаление модера
@@ -78,10 +78,12 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     elif callback.data =='upload_base':
         pass
     elif callback.data == 'check_programm':
+        await User_Panel.check_programm.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
                                          reply_markup=check_programm_keyboard)
-        await User_Panel.check_programm.set()
-
+    elif callback.data == 'make_announcement':
+        await Moder_Panel.make_announcement.set()
+        await callback.message.edit_text('Введите сообщение, которое хотите сделать объявлением')
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -91,6 +93,8 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
         global BOLTUN_PATTERN
         BOLTUN_PATTERN = file_reader("boltun.txt")
         cb_data = callback_data["action"].split("_") ; cb_data = int(cb_data[len(cb_data) - 1])
+        # data = callback.message.reply_markup.inline_keyboard
+        # key = f'{callback_data["@"]}:{callback_data["action"]}'
 
         menu_data = await cache.get(Global_Data_Storage.menu_temp_inf)
         if menu_data:
@@ -227,3 +231,43 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
     elif callback.data == 'do_not_add_to_base':
         await state.finish()
         await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+
+@dp.callback_query_handler(state=Moder_Panel.make_announcement)
+async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    announcement = data['announcement_text']
+    ids_to_send = set()
+    supergroup_ids = [-1001821625858]
+    if callback.data == 'private_announcement':
+        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
+        for id in ids:
+            ids_to_send.add(id[0])
+
+        for id_to_send in ids_to_send:
+            try:
+                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
+            except exceptions.BotBlocked:
+                continue
+        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+                                         reply_markup=glavnoe_menu_keyboard)
+    elif callback.data == 'supergroup_announcement':
+        for supergroup in supergroup_ids:
+            await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
+        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+                                    reply_markup=glavnoe_menu_keyboard)
+    elif callback.data == 'both_announcement':
+        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
+        for id in ids:
+            ids_to_send.add(id[0])
+
+        for id_to_send in ids_to_send:
+            try:
+                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
+            except exceptions.BotBlocked:
+                continue
+        
+        for supergroup in supergroup_ids:
+            await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
+            
+        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+                                reply_markup=glavnoe_menu_keyboard)

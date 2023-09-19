@@ -5,7 +5,6 @@ from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
 import pandas as pd
-from functools import reduce 
 import re
 
 def file_reader(file_path: str):
@@ -55,7 +54,6 @@ def fuzzy_handler(boltun_text: list, user_question: str):
             if(max_similarity_rate < current_similarity_rate and max_similarity_rate != current_similarity_rate):
                 max_similarity_rate = current_similarity_rate
                 index = number
-
     sample = boltun_text_orig[index + 1]
 
     if max_similarity_rate < 50:
@@ -97,7 +95,7 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = r'C:\Users\user\Desktop\IT-Project\Для работы\documents\programms.xlsx'
+    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-1\\programs_edit_11.xlsx'
     
     programs = pd.read_excel(path, sheet_name='Общая таблица')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА']

@@ -39,6 +39,11 @@ class Database:
                 reply_received TEXT NOT NULL DEFAULT 'FALSE'
                 )""")
             
+            await conn.execute('''CREATE TABLE IF NOT EXISTS checked_ids (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name TEXT)''')
+            
     async def create_infromation_about_moder(self):
         async with aiosqlite.connect('database.db') as conn:
             await conn.execute('''CREATE TABLE IF NOT EXISTS moder_information
@@ -126,6 +131,8 @@ class Database:
             rows = await cursor.fetchall()
             chat_type = rows[0][9]
             chat_id = rows[0][10]
+            # chat_type = rows[0][11] ТУТ НУЖНО ПРОВЕРИТЬ
+            # chat_id = rows[0][12]
             return chat_type, chat_id
         
     async def get_all_questions(self):
@@ -208,4 +215,26 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('SELECT * FROM admin_questions WHERE user_id = ? ORDER BY quarry_date', (user_id, )) as cursor:
             result = await cursor.fetchall()
+            return result
+        
+    async def get_ids_for_announcement(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT user_id FROM admin_questions') as cursor:
+            result_1 = await cursor.fetchall()
+        async with self.connection.execute('SELECT user_id FROM fuzzy_db') as cursor:
+            result_2 = await cursor.fetchall()
+        return result_1 + result_2
+    
+    async def add_checked_id(self, user_id: int, user_name: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('INSERT INTO checked_ids (user_id, user_name) VALUES (?, ?)', (user_id, user_name)):
+            await self.connection.commit()
+
+    async def get_checked_ids(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT user_id FROM checked_ids') as cursor:
+            result = await cursor.fetchall()  
             return result
