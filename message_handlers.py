@@ -7,30 +7,16 @@ import json
 
 from db_actions import Database
 from main import dp, bot
-from keyboards import user_keyboard, moder_start_keyboard, moder_owner_start_keyboard, question_base_keyboard, glavnoe_menu_keyboard
+from keyboards import user_keyboard, moder_owner_start_keyboard, question_base_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import announcement_keyboard
 from additional_functions import fuzzy_handler, check_program
 from keyboards import Boltun_Step_Back
 from cache_container import cache
 from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
+from states import User_Panel, Moder_Panel
 
 db = Database()
-class Answer(StatesGroup):
-    waiting_for_answer = State()
-    making_question = State()
-    choosing_answer = State()
-    add_moder = State()
-    delete_moder = State()
-    boltun_question = State()
-    boltun_reply = State()
-    boltun_back_to_menu = State() 
-    gpt_question = State()
-    adding_to_base = State()
-    check_programm = State()
-    check_fio = State()
-    check_snils = State()
-    make_announcement = State()
 
 class Global_Data_Storage():
     menu_temp_inf = 0
@@ -55,7 +41,7 @@ async def process_start_message(message: types.Message):
                 if id[1] == 'Owner':
                     await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
                 else:
-                    await message.answer('Можем приступить к работе', reply_markup=moder_start_keyboard)
+                    await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
                 return
         await message.delete()
         await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
@@ -64,13 +50,13 @@ async def process_start_message(message: types.Message):
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
-@dp.message_handler(state=Answer.boltun_question)
+@dp.message_handler(state=User_Panel.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     global BOLTUN_PATTERN
     await state.update_data(question=message.text) 
     Global_Data_Storage.question_temp_inf = message.text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
-    await Answer.boltun_reply.set()
+    await User_Panel.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90:
@@ -98,7 +84,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 reply_status='TRUE',
                 similarity_rate=similarity_rate
                 )
-            await Answer.boltun_reply.set()
+            await User_Panel.boltun_reply.set()
     else:
         # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
         await db.add_question(user_id=message.from_user.id, 
@@ -110,9 +96,9 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
         await state.finish()
         await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
-@dp.message_handler(text = "Не нашел подходящего вопроса", state=Answer.boltun_reply)
+@dp.message_handler(text = "Не нашел подходящего вопроса", state=User_Panel.boltun_reply)
 async def redirect_question(message: types.Message, state: FSMContext):
-    await Answer.making_question.set()
+    await User_Panel.making_question.set()
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
     question_id = await db.add_question(user_id=message.from_user.id, 
                                         user_name=message.from_user.full_name, 
@@ -122,7 +108,7 @@ async def redirect_question(message: types.Message, state: FSMContext):
     await state.finish()
     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
-@dp.message_handler(text = "Вернуться к выбору", state=Answer.boltun_reply)
+@dp.message_handler(text = "Вернуться к выбору", state=User_Panel.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
 # он так же обрабатывает любые сообщения отличные от заданных кнопками и командами.
 async def on_reply_processing(message: types.Message):
@@ -138,12 +124,12 @@ async def on_reply_processing(message: types.Message):
     # до тех пор, пока пользователь не получил ответ, любое его сообщение будет игнорироваться 
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
 
-@dp.message_handler(text = "Завершить процесс", state=Answer.boltun_reply)
+@dp.message_handler(text = "Завершить процесс", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
     await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
     await state.finish()
 
-@dp.message_handler(text = "Меня не устроил ответ", state=Answer.boltun_reply)
+@dp.message_handler(text = "Меня не устроил ответ", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question = await db.get_fuzzy_id(user_id=user_id)
@@ -172,7 +158,7 @@ async def process_question_command(message: types.Message):
     else:
         await message.answer('Неверный формат')
 
-@dp.message_handler(state=Answer.making_question)
+@dp.message_handler(state=User_Panel.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
     question_id = await db.add_question(message.from_user.id, 
@@ -186,7 +172,7 @@ async def process_question_button(message: types.Message, state: FSMContext):
 async def back_to_start(message: types.Message, state: FSMContext):
     await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
 
-@dp.message_handler(state=Answer.check_fio)
+@dp.message_handler(state=User_Panel.check_fio)
 async def checking_fio(message: types.Message, state: FSMContext):
     # video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
     await message.answer('Ожидайте ответа')
@@ -208,7 +194,7 @@ https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже в�
         #     await bot.send_video(chat_id=message.from_user.id, video=video)
     await state.finish()
 
-@dp.message_handler(state=Answer.check_snils)
+@dp.message_handler(state=User_Panel.check_snils)
 async def process_check_programm(message: types.Message, state: FSMContext):
     await message.answer('Ожидайте ответа')
     name = message.text.strip()
@@ -228,7 +214,7 @@ https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже в�
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
 
-@dp.message_handler(state=Answer.waiting_for_answer)
+@dp.message_handler(state=Moder_Panel.waiting_for_answer)
 async def process_answer(message: types.Message, state: FSMContext):
     # Получаем айди и имя модера, чтобы сохранить в бд
     moder_id = message.from_user.id
@@ -253,10 +239,10 @@ async def process_answer(message: types.Message, state: FSMContext):
         await state.finish()
         # Блок по добавлению в базу ответов
     await message.answer('Внести его в базу данных вопросов?', reply_markup=question_base_keyboard)
-    await Answer.adding_to_base.set()
+    await Moder_Panel.adding_to_base.set()
     await state.update_data(question=question.get('question'), answer=message.text)
 
-@dp.message_handler(state=Answer.add_moder)
+@dp.message_handler(state=Moder_Panel.add_moder)
 async def process_adding_moder(message: types.Message, state: FSMContext):
     # Обработка добавления модера, получаем айди и имя, завершаем состояние и т д
     moder_id = message.text.split()[0]
@@ -266,14 +252,14 @@ async def process_adding_moder(message: types.Message, state: FSMContext):
     await db.add_new_moder(moder_id=moder_id, moder_name=moder_name, role=moder_role)
     await message.answer('Модер добавлен', reply_markup=moder_owner_start_keyboard)
 
-@dp.message_handler(state=Answer.delete_moder)
+@dp.message_handler(state=Moder_Panel.delete_moder)
 async def process_deleting_moder(message: types.Message, state: FSMContext):
     # Тоже самое, что и с добавлением
     await db.delete_moder(message.text)
     await state.finish()
     await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
 
-@dp.message_handler(state=Answer.make_announcement)
+@dp.message_handler(state=Moder_Panel.make_announcement)
 async def process_announcement(message: types.Message, state: FSMContext):
     announcement = message.text
     await state.update_data(announcement_text=announcement)

@@ -129,10 +129,8 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('SELECT * FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
             rows = await cursor.fetchall()
-            chat_type = rows[0][9]
-            chat_id = rows[0][10]
-            # chat_type = rows[0][11] ТУТ НУЖНО ПРОВЕРИТЬ
-            # chat_id = rows[0][12]
+            chat_type = rows[0][11]
+            chat_id = rows[0][12]
             return chat_type, chat_id
         
     async def get_all_questions(self):

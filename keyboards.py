@@ -66,8 +66,6 @@ upload_database = InlineKeyboardButton(text='Выгрузить базу', callb
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
 moder_instruction = InlineKeyboardButton(text='Инструкция по взаимодействию для модераторов', callback_data='moder_instruction')
 
-moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, add_moder, delete_moder, upload_database)
-generate_answer_keyboard.add(generate_answer, do_not_generate_answer, check_history, glavnoe_menu_button)
 common_moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question, moder_instruction, user_instruction)
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history')
 make_announcement = InlineKeyboardButton(text='Сделать объявление', callback_data='make_announcement')
