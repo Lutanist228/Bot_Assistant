@@ -170,6 +170,13 @@ async def process_question_button(message: types.Message, state: FSMContext):
 
 @dp.message_handler(text = "Вернуться в главное меню", state=None)
 async def back_to_start(message: types.Message, state: FSMContext):
+    moder_ids = await db.get_moder()
+    for id in moder_ids:
+        if message.from_user.id == id[0]:
+            # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
+            if id[1] == 'Moder':
+                await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
+            return
     await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
 
 @dp.message_handler(state=User_Panel.check_fio)
