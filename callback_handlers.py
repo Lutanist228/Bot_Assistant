@@ -22,7 +22,7 @@ from aiogram.utils.exceptions import TelegramAPIError
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
     current_state = await state.get_state()
-    if current_state == 'Answer:waiting_for_answer':
+    if current_state == 'Moder_Panel:waiting_for_answer':
         data = await state.get_data()
         question_id = data['question_id']
         await db.update_question_id(question_id=question_id,
@@ -45,12 +45,10 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'user_instruction':
-        await callback.message.delete()
         await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
         await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
     elif callback.data == 'moder_instruction':
-        await callback.message.delete()
         await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPWUJ24mmC2G8ozWpjDW05PxEorRyAAI7PwACr8VQSBscvkHFAmYDMAQ')
         await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
@@ -243,10 +241,10 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
         ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
             ids_to_send.add(id[0])
-
+        await callback.message.edit_text('Объявление отправляется, ожидайте')
         for id_to_send in ids_to_send:
             try:
-                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
+                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}', reply_markup=user_keyboard)
             except exceptions.BotBlocked:
                 continue
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
@@ -260,7 +258,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
         ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
             ids_to_send.add(id[0])
-
+        await callback.message.edit_text('Объявление отправляется, ожидайте')
         for id_to_send in ids_to_send:
             try:
                 await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
