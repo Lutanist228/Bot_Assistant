@@ -156,7 +156,7 @@ async def process_question_command(message: types.Message):
                                             supergroup_id=supergroup_id)
         await message.reply('Вопрос был передан')
     else:
-        await message.answer('Неверный формат')
+        await message.answer('После /question через пробел напишите свой вопрос')
 
 @dp.message_handler(state=User_Panel.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
