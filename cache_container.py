@@ -1,4 +1,5 @@
 from aiocache import caches, SimpleMemoryCache
+import pandas as pd
 
 # Создаем кэш хранилище
 cache = SimpleMemoryCache()
@@ -12,3 +13,10 @@ caches.set_config({
         }
     }
 })
+
+async def excel_data():
+    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_13.xlsx'
+    
+    programs = pd.read_excel(path, sheet_name='Общая таблица')
+
+    await cache.set('excel_data', programs)

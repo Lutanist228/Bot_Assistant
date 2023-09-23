@@ -58,6 +58,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await User_Panel.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
+    list_of_questions = list(set(list_of_questions))
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90:
             await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=Boltun_Step_Back.kb_failed_to_find)
@@ -181,40 +182,36 @@ async def back_to_start(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=User_Panel.check_fio)
 async def checking_fio(message: types.Message, state: FSMContext):
-    # video_path = '/home/admin2/Рабочий стол/Bot for CK/registration.mp4'
-    await message.answer('Ожидайте ответа')
     name = message.text.strip()
     result = await check_program(name, method_check='fio')
     if result == 'Нет в зачислении':
         await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
     else:
-        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
-        await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
-Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
-Пройдите, пожалуйста, регистрацию на сайте
-https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
-        await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
+        await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
+#         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
+#         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
+# Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
+# Пройдите, пожалуйста, регистрацию на сайте
+# https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
+#         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
         await db.add_checked_id(user_id=message.from_user.id,
                                 user_name=message.from_user.full_name)
-        # with open(video_path, 'rb') as video_file:
-        #     video = types.InputFile(video_file)
-        #     await bot.send_video(chat_id=message.from_user.id, video=video)
     await state.finish()
 
 @dp.message_handler(state=User_Panel.check_snils)
 async def process_check_programm(message: types.Message, state: FSMContext):
-    await message.answer('Ожидайте ответа')
     name = message.text.strip()
     result = await check_program(name, method_check='snils')
     if result == 'Нет в зачислении':
         await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
     else:
-        await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
-        await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
-Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
-Пройдите, пожалуйста, регистрацию на сайте
-https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
-        await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
+        await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
+#         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
+#         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
+# Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
+# Пройдите, пожалуйста, регистрацию на сайте
+# https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
+#         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
         await db.add_checked_id(user_id=message.from_user.id,
                             user_name=message.from_user.full_name)
     await state.finish()
