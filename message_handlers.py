@@ -3,6 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.utils.exceptions import TelegramAPIError
 from aiogram.utils import exceptions
+from aiogram.types import InlineKeyboardMarkup
 import json
 
 from db_actions import Database
@@ -19,19 +20,20 @@ from states import User_Panel, Moder_Panel
 db = Database()
 
 class Global_Data_Storage():
-    menu_temp_inf = 0
+    menu_temp_inf = 0   
     question_temp_inf = ""
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
-@dp.message_handler(commands=['start'])
-async def process_start_message(message: types.Message):
+@dp.message_handler(commands=['start'], state='*')
+async def process_start_message(message: types.Message, state: FSMContext):
     """ 
     Process 'Start' command and check if user is moder or not
     After it sends keyboards
 
     :param message: 'Start' command
     """
+    await state.finish()
     if message.chat.type == 'private':
     # Достаем айдишники модеров, чтобы проверить пользователя кем он является
         moder_ids = await db.get_moder()
@@ -44,7 +46,10 @@ async def process_start_message(message: types.Message):
                     await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
                 return
         await message.delete()
-        await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+        bot_answer = await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                                     message_id=bot_answer.message_id, 
+                                     status='active')
     else:
         await message.reply('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "/question ваш вопрос"')
 
@@ -52,6 +57,7 @@ async def process_start_message(message: types.Message):
 
 @dp.message_handler(state=User_Panel.boltun_question)
 async def fuzzy_handling(message: types.Message, state: FSMContext):
+    markup = InlineKeyboardMarkup()
     global BOLTUN_PATTERN
     await state.update_data(question=message.text) 
     Global_Data_Storage.question_temp_inf = message.text
@@ -66,12 +72,18 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await cache.set(message.message_id, serialized_question_menu_data)
             Global_Data_Storage.menu_temp_inf = message.message_id
             gen_text = [f"""Вопрос №{num + 1}: {value}\n""" for num, value in enumerate(list_of_questions)] ; gen_text = ''.join(gen_text)
-            await bot.send_message(chat_id=message.from_user.id, 
+            bot_answer_1 = await bot.send_message(chat_id=message.from_user.id, 
                                     text=f"Возможно вы имели в виду:\n\n{gen_text}",
                                     reply_markup=Boltun_Keys.get_keyboard(list_of_names=list_of_questions, user_id=message.from_user.id))
+            await bot.edit_message_reply_markup(chat_id=message.from_user.id,
+                                                message_id=data['message_id'],
+                                                reply_markup=markup)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                message_id=bot_answer_1.message_id,     
+                status='not active')
         else:
             await message.answer(text="Отлично, а теперь дождитесь ответа бота!")
-            await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_got_answer)
+            bot_answer_2 = await bot.send_message(chat_id=message.from_user.id, text=f"Ответ:\n{reply_text}", reply_markup=Boltun_Step_Back.kb_got_answer)
             question = data.get('question')
             message_id = await db.add_question(data_base_type="fuzzy_db", 
                                             question=question, 
@@ -79,6 +91,12 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                             user_name=message.from_user.full_name,
                                             message_id=message.message_id,
                                             chat_type=message.chat.type)
+            await bot.edit_message_reply_markup(chat_id=message.from_user.id,
+                                    message_id=data['message_id'],
+                                    reply_markup=markup)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                message_id=bot_answer_2.message_id, 
+                status='not active')
             await db.update_fuzzy_data(
                 primary_key_value=message_id,
                 bot_reply=reply_text,
@@ -107,7 +125,10 @@ async def redirect_question(message: types.Message, state: FSMContext):
                                         question=Global_Data_Storage.question_temp_inf,
                                         chat_type=message.chat.type)
     await state.finish()
-    await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+    bot_answer = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+    await active_keyboard_status(user_id=message.from_user.id, 
+                message_id=bot_answer.message_id,     
+                status='active')
 
 @dp.message_handler(text = "Вернуться к выбору", state=User_Panel.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
@@ -127,8 +148,11 @@ async def on_reply_processing(message: types.Message):
 
 @dp.message_handler(text = "Завершить процесс", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
-    await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
+    bot_answer = await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
     await state.finish()
+    await active_keyboard_status(user_id=message.from_user.id, 
+            message_id=bot_answer.message_id, 
+            status='active')
 
 @dp.message_handler(text = "Меня не устроил ответ", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
@@ -140,7 +164,10 @@ async def quitting(message: types.Message, state: FSMContext):
                                         question=question[0], 
                                         chat_type=message.chat.type, 
                                         message_id=message.message_id)
-    await message.reply('Вопрос был передан')
+    bot_answer = await message.reply('Вопрос был передан', reply_markup=glavnoe_menu_keyboard)
+    await active_keyboard_status(user_id=message.from_user.id, 
+        message_id=bot_answer.message_id, 
+        status='active')
 
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):
@@ -155,7 +182,6 @@ async def process_question_command(message: types.Message):
                                             question=question,
                                             chat_type=chat_type,
                                             supergroup_id=supergroup_id)
-        await message.reply('Вопрос был передан')
     else:
         await message.answer('После /question через пробел напишите свой вопрос')
 
@@ -185,9 +211,12 @@ async def checking_fio(message: types.Message, state: FSMContext):
     name = message.text.strip()
     result = await check_program(name, method_check='fio')
     if result == 'Нет в зачислении':
-        await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                    message_id=bot_answer_1.message_id, 
+                    status='active')
     else:
-        await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
+        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
 #         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
 #         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
 # Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
@@ -196,6 +225,9 @@ async def checking_fio(message: types.Message, state: FSMContext):
 #         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
         await db.add_checked_id(user_id=message.from_user.id,
                                 user_name=message.from_user.full_name)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_2.message_id, 
+                        status='active')
     await state.finish()
 
 @dp.message_handler(state=User_Panel.check_snils)
@@ -203,9 +235,12 @@ async def process_check_programm(message: types.Message, state: FSMContext):
     name = message.text.strip()
     result = await check_program(name, method_check='snils')
     if result == 'Нет в зачислении':
-        await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                    message_id=bot_answer_1.message_id, 
+                    status='active')
     else:
-        await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
+        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
 #         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
 #         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
 # Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
@@ -214,6 +249,9 @@ async def process_check_programm(message: types.Message, state: FSMContext):
 #         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
         await db.add_checked_id(user_id=message.from_user.id,
                             user_name=message.from_user.full_name)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_2.message_id, 
+                        status='active')
     await state.finish()
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
@@ -276,3 +314,28 @@ async def process_errors(update: types.Update, exception: exceptions):
     if isinstance(exception, exceptions.BotBlocked):
         await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
                                     reply_markup=glavnoe_menu_keyboard)
+
+#------------------------------------------ADDITIONAL FUNCS----------------------------------------------
+
+async def active_keyboard_status(user_id: int, message_id: int, status: str):
+    markup = InlineKeyboardMarkup()
+    info = await cache.get(user_id)
+    await cache.delete(user_id)
+    if info:
+        for key, value in info.items():
+            if value == 'not active':
+                continue
+            elif value == 'active' and status == 'not active':
+                info[key] = status
+            elif value == 'active' and message_id != key:
+                value = 'not active'
+                info[key] = value
+                await bot.edit_message_reply_markup(chat_id=user_id, 
+                                                    message_id=key,
+                                                    reply_markup=markup)
+        info[message_id] = status
+        await cache.set(user_id, info)
+    else:
+        info = {}
+        info[message_id] = status
+        await cache.set(user_id, info)
