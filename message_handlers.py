@@ -339,3 +339,7 @@ async def active_keyboard_status(user_id: int, message_id: int, status: str):
         info = {}
         info[message_id] = status
         await cache.set(user_id, info)
+
+@dp.message_handler(content_types=types.ContentType.VIDEO)
+async def process_videos(message: types.Message):
+    print(message.video)

@@ -10,7 +10,7 @@ from Chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN
 from states import User_Panel, Moder_Panel
 
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher import FSMContext
 import json
 from aiogram.dispatcher.filters import Text
@@ -50,8 +50,11 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'user_instruction':
         await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
-        await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+        bot_answer_1 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
+        await active_keyboard_status(user_id=callback.from_user.id, 
+                            message_id=bot_answer_1.message_id, 
+                            status='active')
     elif callback.data == 'moder_instruction':
         await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPWUJ24mmC2G8ozWpjDW05PxEorRyAAI7PwACr8VQSBscvkHFAmYDMAQ')
         await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
@@ -88,6 +91,20 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     elif callback.data == 'make_announcement':
         await Moder_Panel.make_announcement.set()
         await callback.message.edit_text('Введите сообщение, которое хотите сделать объявлением', reply_markup=glavnoe_menu_keyboard)
+    elif callback.data == 'registration':
+        await bot.send_document(chat_id=callback.from_user.id,
+                                document='BAACAgIAAxkBAAJ9-WUWcKHKC88mq-EXiF4woyUWle7vAALXMQACCAa5SLfFZK6m08nCMAQ')
+        bot_answer_2 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+        await active_keyboard_status(user_id=callback.from_user.id, 
+                            message_id=bot_answer_2.message_id, 
+                            status='active')
+    elif callback.data == 'lk_using':
+        await bot.send_document(chat_id=callback.from_user.id,
+                        document='BAACAgIAAxkBAAJ9_GUWcMTCVGHzUTM7XexCL8F1ErdeAALYMQACCAa5SI0J7nAiv75_MAQ')
+        bot_answer_2 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+        await active_keyboard_status(user_id=callback.from_user.id, 
+                            message_id=bot_answer_2.message_id, 
+                            status='active')
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -243,7 +260,12 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
     data = await state.get_data()
     announcement = data['announcement_text']
     ids_to_send = set()
-    supergroup_ids = [-1001821625858]
+    supergroup_ids = {'Общая информация по ДПП': -1001966706612,
+                      'Разработчик электронных медицинских сервисов': -1001944717245,
+                      'Специалист по анализу медицинских данных': -1001938691427,
+                      'DevOps': -1001910975819,
+                      'VR/AR разработчик': -1001983546737}
+    
     if callback.data == 'private_announcement':
         ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
@@ -262,7 +284,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
                                          reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'supergroup_announcement':
-        for supergroup in supergroup_ids:
+        for name, supergroup in supergroup_ids.items():
             await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
                                     reply_markup=glavnoe_menu_keyboard)

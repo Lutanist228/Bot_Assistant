@@ -20,10 +20,13 @@ check_programm_in_base = InlineKeyboardButton(text='Проверить зачи�
 user_instruction = InlineKeyboardButton(text='Инструкция по взаимодействию для пользователей', callback_data='user_instruction')
 fio_check = InlineKeyboardButton(text='Проверить по ФИО', callback_data='check_fio')
 snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='check_snils')
+registration_button = InlineKeyboardButton(text='Как регистрироваться?', callback_data='registration')
+lk_using_button = InlineKeyboardButton(text='Как пользоваться лк?', callback_data='lk_using')
 
 check_programm_keyboard.add(fio_check, snils_check, 
                             glavnoe_menu_button)
 user_keyboard.add(question_button, check_programm_in_base, 
+                  registration_button, lk_using_button,
                   user_instruction)
 
 class Boltun_Step_Back:
