@@ -12,22 +12,22 @@ glavnoe_menu_keyboard.add(glavnoe_menu_button)
 
 #                                             USER
 #----------------------------------------------------------------------------------------------------------------
-user_keyboard = InlineKeyboardMarkup(row_width=2)
+user_keyboard = InlineKeyboardMarkup(row_width=1)
 check_programm_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
 check_programm_in_base = InlineKeyboardButton(text='Проверить зачисление', callback_data='check_programm')
-user_instruction = InlineKeyboardButton(text='Инструкция по взаимодействию для пользователей', callback_data='user_instruction')
+user_instruction = InlineKeyboardButton(text='Инструкция для пользователей', callback_data='user_instruction')
 fio_check = InlineKeyboardButton(text='Проверить по ФИО', callback_data='check_fio')
 snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='check_snils')
-registration_button = InlineKeyboardButton(text='Как регистрироваться?', callback_data='registration')
-lk_using_button = InlineKeyboardButton(text='Как пользоваться лк?', callback_data='lk_using')
+registration_button = InlineKeyboardButton(text='Как регистрироваться', callback_data='registration')
+lk_using_button = InlineKeyboardButton(text='Как пользоваться лк Сеченова', callback_data='lk_using')
+innopolis_button = InlineKeyboardButton(text='Как пользоваться лк Иннополиса', callback_data='innopolis_usage')
 
 check_programm_keyboard.add(fio_check, snils_check, 
                             glavnoe_menu_button)
-user_keyboard.add(question_button, check_programm_in_base, 
-                  registration_button, lk_using_button,
-                  user_instruction)
+user_keyboard.add(question_button, lk_using_button,
+                  user_instruction, innopolis_button)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
@@ -57,8 +57,8 @@ class Boltun_Keys:
 
 #                                             MODER
 #----------------------------------------------------------------------------------------------------------------
-moder_owner_start_keyboard = InlineKeyboardMarkup(row_width=2)
-common_moder_start_keyboard = InlineKeyboardMarkup(row_width=2)
+moder_owner_start_keyboard = InlineKeyboardMarkup(row_width=1)
+common_moder_start_keyboard = InlineKeyboardMarkup(row_width=1)
 generate_answer_keyboard = InlineKeyboardMarkup(row_width=2)
 
 number_of_unanswered_questions = InlineKeyboardButton(text='Ожидают ответа', callback_data='number_unanswered')
@@ -69,7 +69,7 @@ generate_answer = InlineKeyboardButton(text='Сгенерировать отве
 do_not_generate_answer = InlineKeyboardButton(text='Не генерировать', callback_data='do_not_generate_answer')
 upload_database = InlineKeyboardButton(text='Выгрузить базу', callback_data='upload_base')
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
-moder_instruction = InlineKeyboardButton(text='Инструкция по взаимодействию для модераторов', callback_data='moder_instruction')
+moder_instruction = InlineKeyboardButton(text='Инструкция для модераторов', callback_data='moder_instruction')
 
 common_moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
                                 moder_instruction, user_instruction)

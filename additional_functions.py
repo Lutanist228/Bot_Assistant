@@ -5,6 +5,7 @@ from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
 import re
+import pandas as pd
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:

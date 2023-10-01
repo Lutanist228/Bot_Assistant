@@ -1,9 +1,9 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.utils.exceptions import TelegramAPIError
 from aiogram.utils import exceptions
 from aiogram.types import InlineKeyboardMarkup
+from aiogram.types.message import ContentType as CT
 import json
 
 from db_actions import Database
@@ -22,6 +22,7 @@ db = Database()
 class Global_Data_Storage():
     menu_temp_inf = 0   
     question_temp_inf = ""
+    photo_temp_inf = []
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
@@ -46,7 +47,7 @@ async def process_start_message(message: types.Message, state: FSMContext):
                     await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
                 return
         await message.delete()
-        bot_answer = await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+        bot_answer = await message.answer('''Выберите дальнейшее действие.\nПеред началом работы с ботом настоятельно рекомендуем ознакомиться с "Пользовательской инструкцией" к боту''', reply_markup=user_keyboard)
         await active_keyboard_status(user_id=message.from_user.id, 
                                      message_id=bot_answer.message_id, 
                                      status='active')
@@ -55,15 +56,24 @@ async def process_start_message(message: types.Message, state: FSMContext):
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
-@dp.message_handler(state=User_Panel.boltun_question)
+@dp.message_handler(state=User_Panel.boltun_question, content_types=[CT.PHOTO, CT.TEXT])
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     markup = InlineKeyboardMarkup()
+    q_text = message.text
     global BOLTUN_PATTERN
+
     await state.update_data(question=message.text) 
-    Global_Data_Storage.question_temp_inf = message.text
+
+    if message.photo:
+        photo_id = [message.photo[i].file_unique_id for i in range(len(message.photo))]
+        photo_id = '\n\n'.join(photo_id)
+        Global_Data_Storage.photo_temp_inf = photo_id
+        q_text = message.caption
+
+    Global_Data_Storage.question_temp_inf = q_text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await User_Panel.boltun_reply.set()
-    reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
+    reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=q_text)
     list_of_questions = list(set(list_of_questions))
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90:
@@ -109,19 +119,26 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
         await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id, 
-                                            question=message.text,
+                                            file_id=photo_id,
+                                            question=q_text,
                                             chat_type=message.chat.type)
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
         await state.finish()
         await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
+@dp.message_handler(content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.VIDEO, CT.VOICE, CT.STICKER, CT.POLL, CT.VIDEO_NOTE], state=User_Panel.boltun_question)
+async def wrong_format(message: types.Message, state: FSMContext):
+    await message.reply("""К сожалению, бот не поддерживает предоставленный формат данных.\nПросим ознакомиться с инструкцией к боту в главном меню""", reply_markup=glavnoe_menu_keyboard)
+    await state.finish()
+
 @dp.message_handler(text = "Не нашел подходящего вопроса", state=User_Panel.boltun_reply)
 async def redirect_question(message: types.Message, state: FSMContext):
     await User_Panel.making_question.set()
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-    question_id = await db.add_question(user_id=message.from_user.id, 
+    await db.add_question(user_id=message.from_user.id, 
                                         user_name=message.from_user.full_name, 
                                         message_id=message.message_id, 
+                                        file_id=Global_Data_Storage.photo_temp_inf,
                                         question=Global_Data_Storage.question_temp_inf,
                                         chat_type=message.chat.type)
     await state.finish()
@@ -155,11 +172,11 @@ async def quitting(message: types.Message, state: FSMContext):
             status='active')
 
 @dp.message_handler(text = "Меня не устроил ответ", state=User_Panel.boltun_reply)
-async def quitting(message: types.Message, state: FSMContext):
+async def quitting(message: types.Message):
     user_id = message.from_user.id
     question = await db.get_fuzzy_id(user_id=user_id)
     user_name = message.from_user.full_name
-    question_id = await db.add_question(user_id=user_id, 
+    await db.add_question(user_id=user_id, 
                                         user_name=user_name, 
                                         question=question[0], 
                                         chat_type=message.chat.type, 
@@ -169,6 +186,11 @@ async def quitting(message: types.Message, state: FSMContext):
         message_id=bot_answer.message_id, 
         status='active')
 
+@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE], state=User_Panel.boltun_reply)
+async def wrong_format(message: types.Message):
+    await message.delete()
+    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
+
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):
     # Обработка в чате вопроса через команду /question
@@ -176,7 +198,7 @@ async def process_question_command(message: types.Message):
         chat_type = message.chat.type
         supergroup_id = message.chat.id
         question = message.text.split('/question')[-1]
-        question_id = await db.add_question(user_id=message.from_user.id, 
+        await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id,
                                             question=question,
@@ -188,15 +210,15 @@ async def process_question_command(message: types.Message):
 @dp.message_handler(state=User_Panel.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-    question_id = await db.add_question(message.from_user.id, 
+    await db.add_question(message.from_user.id, 
                                         message.from_user.full_name, 
                                         message.text, chat_type=message.chat.type, 
                                         message_id=message.message_id)
     await state.finish()
     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
-@dp.message_handler(text = "Вернуться в главное меню", state=None)
-async def back_to_start(message: types.Message, state: FSMContext):
+@dp.message_handler(text = 'Вернуться в главное меню', state=None)
+async def back_to_start(message: types.Message):
     moder_ids = await db.get_moder()
     for id in moder_ids:
         if message.from_user.id == id[0]:
