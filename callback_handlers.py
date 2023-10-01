@@ -6,7 +6,7 @@ from additional_functions import create_inline_keyboard, file_reader, save_to_tx
 from message_handlers import Global_Data_Storage, cache, db
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
-from Chat_gpt_module import answer_information
+from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN
 from states import User_Panel, Moder_Panel
 
@@ -45,7 +45,10 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'user_instruction':
-        await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
+        with open(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\Пользовательская инструкция.pdf", 'rb') as path:
+            instruction = types.InputFile(path)
+            await bot.send_document(chat_id=callback.from_user.id, document=instruction)
+        # await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
         await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
     elif callback.data == 'moder_instruction':

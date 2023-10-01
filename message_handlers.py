@@ -58,6 +58,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await User_Panel.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=message.text)
+    list_of_questions = list(set(list_of_questions))
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90:
             await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=Boltun_Step_Back.kb_failed_to_find)
