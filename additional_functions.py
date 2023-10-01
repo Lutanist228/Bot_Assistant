@@ -4,7 +4,6 @@ from keyboards import glavnoe_menu_button
 from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
-import pandas as pd
 import re
 
 def file_reader(file_path: str):
@@ -95,9 +94,7 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_13.xlsx'
-    
-    programs = pd.read_excel(path, sheet_name='Общая таблица')
+    programs = await cache.get('excel_data')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА', 'да?', 'ДА?']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
     if method_check == 'fio':
