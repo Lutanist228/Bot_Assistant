@@ -375,7 +375,3 @@ async def process_timeout(time_for_sleep: int, state: FSMContext, chat_id: int):
 @dp.message_handler(content_types=types.ContentType.VIDEO)
 async def process_videos(message: types.Message):
     print(message.video)
-
-@dp.message_handler(commands=['add'])
-async def add_column(message: types.Message):
-    await db.edit_db()

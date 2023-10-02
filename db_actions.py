@@ -237,8 +237,3 @@ class Database:
             result = await cursor.fetchall()  
             return result
         
-    async def edit_db(self):
-        if self.connection is None:
-            await self.create_connection()
-        async with self.connection.execute('''ALTER TABLE admin_questions ADD COLUMN question_picture BLOB'''):
-            await self.connection.commit() 

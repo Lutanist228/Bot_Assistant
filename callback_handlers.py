@@ -64,6 +64,9 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         bot_answer = await callback.message.edit_text('Задайте свой вопрос. Если хотите прикрепить скриншот, то отправляйте строго одно фото. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
         await User_Panel.boltun_question.set()
         await state.update_data(message_id=bot_answer.message_id)
+        await active_keyboard_status(user_id=callback.from_user.id,
+                                     message_id=bot_answer.message_id,
+                                     status='active')
         await process_timeout(time_for_sleep=600,
                         state=state,
                         chat_id=callback.from_user.id)
@@ -314,7 +317,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation):
                 continue
         
-        for supergroup in supergroup_ids:
+        for name, supergroup in supergroup_ids.items():
             await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
             
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
