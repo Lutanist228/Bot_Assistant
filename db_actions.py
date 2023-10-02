@@ -63,12 +63,12 @@ class Database:
                                        (moder_id, moder_name, 'Owner'))
                 await conn.commit()
                        
-    async def add_question(self, user_id: int, user_name: str, message_id: int, question: str, chat_type: str, supergroup_id: int = None, data_base_type: str = "admin_questions"):
+    async def add_question(self, user_id: int, user_name: str, message_id: int, question: str, chat_type: str, supergroup_id: int = None, photo_id = None, data_base_type: str = "admin_questions"):
         if self.connection is None:
             await self.create_connection()
         if data_base_type == "admin_questions":    
-            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id, quarry_date) VALUES (?, ?, ?, ?, ?, ?, datetime(julianday("now", "+3 hours")))', 
-                                               (user_id, user_name, message_id, question, chat_type, supergroup_id)) as cursor:
+            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id, quarry_date, question_picture) VALUES (?, ?, ?, ?, ?, ?, datetime(julianday("now", "+3 hours")), ?)', 
+                                               (user_id, user_name, message_id, question, chat_type, supergroup_id, photo_id)) as cursor:
                     question_id = cursor.lastrowid
                     await self.connection.commit()
         elif data_base_type == "fuzzy_db":
@@ -236,3 +236,9 @@ class Database:
         async with self.connection.execute('SELECT user_id FROM checked_ids') as cursor:
             result = await cursor.fetchall()  
             return result
+        
+    async def edit_db(self):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('''ALTER TABLE admin_questions ADD COLUMN question_picture BLOB'''):
+            await self.connection.commit() 

@@ -1,7 +1,9 @@
 message_handlers.py
 config_file.py
 config_file.py
-programs_edit_11.xlsx
 config_file.py
-programs_edit_13.xlsx
+*.xlsx
 database.db
+Секреты ЛК.mp4
+как перейти в профиль студента.mp4
+stepik.py
