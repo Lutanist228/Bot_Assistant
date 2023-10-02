@@ -22,7 +22,6 @@ db = Database()
 class Global_Data_Storage():
     menu_temp_inf = 0   
     question_temp_inf = ""
-    photo_temp_inf = []
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
@@ -59,16 +58,9 @@ async def process_start_message(message: types.Message, state: FSMContext):
 @dp.message_handler(state=User_Panel.boltun_question, content_types=[CT.PHOTO, CT.TEXT])
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     markup = InlineKeyboardMarkup()
-    q_text = message.text
     global BOLTUN_PATTERN
-
+    q_text = message.text
     await state.update_data(question=message.text) 
-
-    if message.photo:
-        photo_id = [message.photo[i].file_unique_id for i in range(len(message.photo))]
-        photo_id = '\n\n'.join(photo_id)
-        Global_Data_Storage.photo_temp_inf = photo_id
-        q_text = message.caption
 
     Global_Data_Storage.question_temp_inf = q_text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
@@ -119,7 +111,6 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
         await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id, 
-                                            file_id=photo_id,
                                             question=q_text,
                                             chat_type=message.chat.type)
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
@@ -138,7 +129,6 @@ async def redirect_question(message: types.Message, state: FSMContext):
     await db.add_question(user_id=message.from_user.id, 
                                         user_name=message.from_user.full_name, 
                                         message_id=message.message_id, 
-                                        file_id=Global_Data_Storage.photo_temp_inf,
                                         question=Global_Data_Storage.question_temp_inf,
                                         chat_type=message.chat.type)
     await state.finish()
@@ -186,7 +176,7 @@ async def quitting(message: types.Message):
         message_id=bot_answer.message_id, 
         status='active')
 
-@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE], state=User_Panel.boltun_reply)
+@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
 async def wrong_format(message: types.Message):
     await message.delete()
     await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")

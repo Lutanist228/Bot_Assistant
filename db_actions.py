@@ -18,7 +18,6 @@ class Database:
                                user_id INTEGER,
                                user_name TEXT,
                                message_id INTEGER,
-                               file_id TEXT DEFAULT NULL,
                                question TEXT,
                                quarry_date REAL NULL,
                                gpt_answer TEXT DEFAULT NULL,
@@ -64,12 +63,12 @@ class Database:
                                        (moder_id, moder_name, 'Owner'))
                 await conn.commit()
                        
-    async def add_question(self, user_id: int, user_name: str, message_id: int, question: str, chat_type: str, file_id: str = None, supergroup_id: int = None, data_base_type: str = "admin_questions"):
+    async def add_question(self, user_id: int, user_name: str, message_id: int, question: str, chat_type: str, supergroup_id: int = None, data_base_type: str = "admin_questions"):
         if self.connection is None:
             await self.create_connection()
         if data_base_type == "admin_questions":    
-            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, file_id, question, chat_type, supergroup_id, quarry_date) VALUES (?, ?, ?, ?, ?, ?, ?, datetime(julianday("now", "+3 hours")))', 
-                                               (user_id, user_name, message_id, file_id, question, chat_type, supergroup_id)) as cursor:
+            async with self.connection.execute('INSERT INTO admin_questions (user_id, user_name, message_id, question, chat_type, supergroup_id, quarry_date) VALUES (?, ?, ?, ?, ?, ?, datetime(julianday("now", "+3 hours")))', 
+                                               (user_id, user_name, message_id, question, chat_type, supergroup_id)) as cursor:
                     question_id = cursor.lastrowid
                     await self.connection.commit()
         elif data_base_type == "fuzzy_db":
@@ -130,8 +129,8 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('SELECT * FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
             rows = await cursor.fetchall()
-            chat_type = rows[0][12]
-            chat_id = rows[0][13]
+            chat_type = rows[0][11]
+            chat_id = rows[0][12]
             return chat_type, chat_id
         
     async def get_all_questions(self):

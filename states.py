@@ -17,4 +17,5 @@ class Moder_Panel(StatesGroup):
     choosing_answer = State()
     waiting_for_answer = State()
     make_announcement = State()
+    answer_panel = State()
 

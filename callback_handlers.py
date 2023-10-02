@@ -7,7 +7,7 @@ from message_handlers import Global_Data_Storage, cache, db, active_keyboard_sta
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
 from chat_gpt_module import answer_information
-from message_handlers import BOLTUN_PATTERN
+from message_handlers import BOLTUN_PATTERN, Global_Data_Storage
 from states import User_Panel, Moder_Panel
 
 from aiogram.types import InlineKeyboardMarkup
@@ -212,7 +212,7 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
             await callback.message.edit_reply_markup(reply_markup=markup)
             await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
                                             reply_markup=generate_answer_keyboard)
-            await Moder_Panel.waiting_for_answer.set()
+            await Moder_Panel.answer_panel.set()
     elif callback.data == 'close_question':
         data = await state.get_data()
         question_id = data['question_id']
@@ -224,7 +224,7 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
                                     moder_name=moder_name)
         await callback.message.edit_text('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
 
-@dp.callback_query_handler(state=Moder_Panel.waiting_for_answer)
+@dp.callback_query_handler(state=Moder_Panel.answer_panel)
 async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'generate_answer':
             await callback.message.delete()
@@ -234,9 +234,11 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
             answer = await answer_information(question=question)
             await db.update_gpt_answer(question_id=question_id, answer=answer)
             await callback.message.answer(f'Сгенерированный ответ:\n{answer}')
+            await Moder_Panel.waiting_for_answer.set()
     elif callback.data == 'do_not_generate_answer':
         await callback.message.delete()
         await callback.message.answer('Напишите свой ответ', reply_markup=glavnoe_menu_keyboard)
+        await Moder_Panel.waiting_for_answer.set()
     elif callback.data == 'check_history':
         data = await state.get_data()
         question_id = data['question_id']
@@ -249,6 +251,7 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
             history += f'Дата-время: {question[6]}\nВопрос: {question[5]}\nОтвет: {question[8]}\n\n'
         await callback.message.edit_text(f'{history} Введите свой ответ или вернитесь в главное меню', 
                                          reply_markup=glavnoe_menu_keyboard)
+        await Moder_Panel.waiting_for_answer.set()
 
 @dp.callback_query_handler(state=Moder_Panel.adding_to_base)
 async def process_base_answers(callback: types.CallbackQuery, state: FSMContext):

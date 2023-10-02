@@ -80,7 +80,6 @@ async def create_inline_keyboard(rows):
                 'question': question}
         # Переводим данные в json формат
         serialized_data = json.dumps(data)
-
         # Сохраняем в кэш память
         await cache.set(question_id, serialized_data)
         button = InlineKeyboardButton(text=f'Вопрос {question_id}', callback_data=f'question:{question_id}')
