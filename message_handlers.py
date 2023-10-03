@@ -202,10 +202,16 @@ async def process_question_command(message: types.Message):
                                             chat_type=chat_type,
                                             supergroup_id=supergroup_id)
     elif '@SechenovCK_bot' in message.text:
-        await message.delete()
+        try:
+            await message.delete()
+        except exceptions.MessageCantBeDeleted:
+            pass
         await message.answer('После /question через пробел напишите свой вопрос без использования тега бота')
     else:
-        await message.delete()
+        try:
+            await message.delete()
+        except exceptions.MessageCantBeDeleted:
+            pass
         await message.answer('После /question через пробел напишите свой вопрос')
 
 @dp.message_handler(state=User_Panel.making_question)
