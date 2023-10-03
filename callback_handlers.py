@@ -7,7 +7,7 @@ from message_handlers import Global_Data_Storage, cache, db, active_keyboard_sta
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
 from chat_gpt_module import answer_information
-from message_handlers import BOLTUN_PATTERN, Global_Data_Storage
+from message_handlers import BOLTUN_PATTERN, process_timeout, Global_Data_Storage
 from states import User_Panel, Moder_Panel
 
 from aiogram.types import InlineKeyboardMarkup
@@ -64,9 +64,15 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await state.finish()
     elif callback.data == 'make_question':
         # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
-        bot_answer = await callback.message.edit_text('Задайте свой вопрос. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
+        bot_answer = await callback.message.edit_text('Задайте свой вопрос. Если хотите прикрепить скриншот, то отправляйте строго одно фото. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
         await User_Panel.boltun_question.set()
         await state.update_data(message_id=bot_answer.message_id)
+        await active_keyboard_status(user_id=callback.from_user.id,
+                                     message_id=bot_answer.message_id,
+                                     status='active')
+        await process_timeout(time_for_sleep=600,
+                        state=state,
+                        chat_id=callback.from_user.id)
     elif callback.data == 'number_unanswered':
         # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
         number = await db.get_number_of_unanswered_questions()
@@ -152,6 +158,11 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
             await User_Panel.boltun_reply.set()
         except UnboundLocalError:
             await callback.answer(text="Ошибка. Просим перезапустить бота...")
+        except IndexError:
+            print(callback, callback_data, sep='\n')
+            await state.finish()
+            await callback.message.answer('Произошла ошибка. Напишите @egor_der или @lutanist228 со скрином проблемы', 
+                                          reply_markup=user_keyboard)
 
 @dp.callback_query_handler(state=User_Panel.check_programm)
 async def program_checking(callback: types.CallbackQuery, state: FSMContext):
@@ -184,14 +195,17 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
     if 'question:' in callback.data:
         callback_data = callback.data.split(':')[1]
         from additional_functions import cache
-        # Получаем информацию по определенному вопросу и выводим
+        # Получаем информацию по определенному вопросу и выводим его
         data = await cache.get(callback_data)
         information = json.loads(data)
         result = ''
         for key, value in information.items():
-            result += f'{key}: {value}\n'
             if key == 'question':
                 await state.update_data(question=value)
+            elif key == 'picture':
+                await state.update_data(picture=value)
+                continue
+            result += f'{key}: {value}\n'
         await state.update_data(question_id=callback_data)
         await callback.message.edit_text(result, reply_markup=moder_choose_question_keyboard)
     # Обработка выбора определенного вопроса
@@ -210,9 +224,18 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
                     moder_id=moder_id,
                     moder_name=moder_name)
             await callback.message.edit_reply_markup(reply_markup=markup)
-            await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
-                                            reply_markup=generate_answer_keyboard)
-            await Moder_Panel.answer_panel.set()
+            try:
+                if data['picture']:
+                    await bot.send_photo(chat_id=callback.from_user.id,
+                                            photo=data['picture'],
+                                            caption='Приложенный скриншот к вопросу')
+                await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                                                reply_markup=generate_answer_keyboard)
+                await Moder_Panel.waiting_for_answer.set()
+            except KeyError:
+                await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                                                reply_markup=generate_answer_keyboard)
+                await Moder_Panel.waiting_for_answer.set()
     elif callback.data == 'close_question':
         data = await state.get_data()
         question_id = data['question_id']
@@ -307,13 +330,18 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
         for id in ids:
             ids_to_send.add(id[0])
         await callback.message.edit_text('Объявление отправляется, ожидайте')
-        for id_to_send in ids_to_send:
+        for index, id_to_send in enumerate(ids_to_send):
+            if index % 20 == 0:
+                await asyncio.sleep(3)
             try:
-                await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}')
-            except exceptions.BotBlocked:
+                bot_answer = await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}\n\nЕсли есть какие-то проблемы, то напишите /start', reply_markup=user_keyboard)
+                await active_keyboard_status(user_id=id_to_send,
+                                             message_id=bot_answer.message_id,
+                                             status='active')
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation):
                 continue
         
-        for supergroup in supergroup_ids:
+        for name, supergroup in supergroup_ids.items():
             await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
             
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 

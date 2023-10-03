@@ -5,6 +5,7 @@ from aiogram.utils import exceptions
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.types.message import ContentType as CT
 import json
+import asyncio
 
 from db_actions import Database
 from main import dp, bot
@@ -55,17 +56,22 @@ async def process_start_message(message: types.Message, state: FSMContext):
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
-@dp.message_handler(state=User_Panel.boltun_question, content_types=[CT.PHOTO, CT.TEXT])
+@dp.message_handler(state=User_Panel.boltun_question, content_types=[types.ContentType.TEXT, types.ContentType.PHOTO])
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     markup = InlineKeyboardMarkup()
     global BOLTUN_PATTERN
-    q_text = message.text
-    await state.update_data(question=message.text) 
-
-    Global_Data_Storage.question_temp_inf = q_text
+    if message.photo:
+        if message.caption:
+            await state.update_data(question=message.caption)
+            Global_Data_Storage.question_temp_inf = message.caption
+        else:
+            await state.update_data(question='By system: Проблема на приложенном фото')
+    else:
+        await state.update_data(question=message.text) 
+        Global_Data_Storage.question_temp_inf = message.text
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await User_Panel.boltun_reply.set()
-    reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=q_text)
+    reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=data['question'])
     list_of_questions = list(set(list_of_questions))
     if reply_text != "Not Found":
         if 50 <= similarity_rate <= 90:
@@ -107,15 +113,26 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 )
             await User_Panel.boltun_reply.set()
     else:
-        # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-        await db.add_question(user_id=message.from_user.id, 
-                                            user_name=message.from_user.full_name, 
-                                            message_id=message.message_id, 
-                                            question=q_text,
-                                            chat_type=message.chat.type)
+        if message.photo:
+            await db.add_question(user_id=message.from_user.id, 
+                                    user_name=message.from_user.full_name, 
+                                    message_id=message.message_id, 
+                                    question=data['question'],
+                                    chat_type=message.chat.type,
+                                    photo_id=message.photo[-1].file_id)
+        else:
+            # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
+            await db.add_question(user_id=message.from_user.id, 
+                                                user_name=message.from_user.full_name, 
+                                                message_id=message.message_id, 
+                                                question=data['question'],
+                                                chat_type=message.chat.type)
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
         await state.finish()
-        await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+        bot_answer_3 = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+            message_id=bot_answer_3.message_id, 
+            status='active')
 
 @dp.message_handler(content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.VIDEO, CT.VOICE, CT.STICKER, CT.POLL, CT.VIDEO_NOTE], state=User_Panel.boltun_question)
 async def wrong_format(message: types.Message, state: FSMContext):
@@ -184,7 +201,7 @@ async def wrong_format(message: types.Message):
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):
     # Обработка в чате вопроса через команду /question
-    if len(message.text) > 10:
+    if len(message.text) > 10 and not '@SechenovCK_bot' in message.text:
         chat_type = message.chat.type
         supergroup_id = message.chat.id
         question = message.text.split('/question')[-1]
@@ -194,7 +211,17 @@ async def process_question_command(message: types.Message):
                                             question=question,
                                             chat_type=chat_type,
                                             supergroup_id=supergroup_id)
+    elif '@SechenovCK_bot' in message.text:
+        try:
+            await message.delete()
+        except exceptions.MessageCantBeDeleted:
+            pass
+        await message.answer('После /question через пробел напишите свой вопрос без использования тега бота')
     else:
+        try:
+            await message.delete()
+        except exceptions.MessageCantBeDeleted:
+            pass
         await message.answer('После /question через пробел напишите свой вопрос')
 
 @dp.message_handler(state=User_Panel.making_question)
@@ -351,6 +378,19 @@ async def active_keyboard_status(user_id: int, message_id: int, status: str):
         info = {}
         info[message_id] = status
         await cache.set(user_id, info)
+
+async def process_timeout(time_for_sleep: int, state: FSMContext, chat_id: int):
+    await asyncio.sleep(time_for_sleep)
+    if await state.get_state() == 'User_Panel:boltun_question':
+        await state.finish()
+        bot_answer = await bot.send_message(chat_id=chat_id, 
+                               text='Вы превисили время на вопрос. Возвращаю вас обратно в меню',
+                               reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=chat_id, 
+            message_id=bot_answer.message_id, 
+            status='active')
+    else:
+        return
 
 @dp.message_handler(content_types=types.ContentType.VIDEO)
 async def process_videos(message: types.Message):
