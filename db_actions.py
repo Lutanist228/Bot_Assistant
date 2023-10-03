@@ -56,8 +56,8 @@ class Database:
             async with conn.execute('SELECT moder_id FROM moder_information') as cursor:
                 check = await cursor.fetchall()
             if len(check) == 0:
-                moder_infromation = {'Егор': 869012176,
-                            'Александр': 6231172367}
+                moder_infromation = {'Егор': 869012176}
+                            # 'Александр': 6231172367}
                 for moder_name, moder_id in moder_infromation.items():
                     await conn.execute('INSERT INTO moder_information (moder_id, moder_name, role) VALUES (?, ?, ?)', 
                                        (moder_id, moder_name, 'Owner'))
