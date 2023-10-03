@@ -147,6 +147,11 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
             await User_Panel.boltun_reply.set()
         except UnboundLocalError:
             await callback.answer(text="Ошибка. Просим перезапустить бота...")
+        except IndexError:
+            print(callback, callback_data, sep='\n')
+            await state.finish()
+            await callback.message.answer('Произошла ошибка. Напишите @egor_der или @lutanist228 со скрином проблемы', 
+                                          reply_markup=user_keyboard)
 
 @dp.callback_query_handler(state=User_Panel.check_programm)
 async def program_checking(callback: types.CallbackQuery, state: FSMContext):

@@ -191,7 +191,7 @@ async def quitting(message: types.Message, state: FSMContext):
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):
     # Обработка в чате вопроса через команду /question
-    if len(message.text) > 10:
+    if len(message.text) > 10 and not '@SechenovCK_bot' in message.text:
         chat_type = message.chat.type
         supergroup_id = message.chat.id
         question = message.text.split('/question')[-1]
@@ -201,7 +201,11 @@ async def process_question_command(message: types.Message):
                                             question=question,
                                             chat_type=chat_type,
                                             supergroup_id=supergroup_id)
+    elif '@SechenovCK_bot' in message.text:
+        await message.delete()
+        await message.answer('После /question через пробел напишите свой вопрос без использования тега бота')
     else:
+        await message.delete()
         await message.answer('После /question через пробел напишите свой вопрос')
 
 @dp.message_handler(state=User_Panel.making_question)
