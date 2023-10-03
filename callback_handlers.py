@@ -208,13 +208,18 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
                     moder_id=moder_id,
                     moder_name=moder_name)
             await callback.message.edit_reply_markup(reply_markup=markup)
-            if data['picture']:
-                await bot.send_photo(chat_id=callback.from_user.id,
-                                        photo=data['picture'],
-                                        caption='Приложенный скриншот к вопросу')
-            await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
-                                            reply_markup=generate_answer_keyboard)
-            await Moder_Panel.waiting_for_answer.set()
+            try:
+                if data['picture']:
+                    await bot.send_photo(chat_id=callback.from_user.id,
+                                            photo=data['picture'],
+                                            caption='Приложенный скриншот к вопросу')
+                await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                                                reply_markup=generate_answer_keyboard)
+                await Moder_Panel.waiting_for_answer.set()
+            except KeyError:
+                await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                                                reply_markup=generate_answer_keyboard)
+                await Moder_Panel.waiting_for_answer.set()
     elif callback.data == 'close_question':
         data = await state.get_data()
         question_id = data['question_id']
