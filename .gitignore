@@ -1,7 +1,7 @@
 message_handlers.py
 config_file.py
 *.xlsx
-database.db
+*.db
 Секреты ЛК.mp4
 как перейти в профиль студента.mp4
 stepik.py

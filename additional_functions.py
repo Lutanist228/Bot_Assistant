@@ -98,7 +98,10 @@ async def create_inline_keyboard(rows):
 async def check_program(name: str, method_check: str):
     programs = await cache.get('excel_data')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА', 'да?', 'ДА?']
-    status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 'Сеченовский Университет (регистрация через личный кабинет)']
+    status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 
+                      'Сеченовский Университет (регистрация через личный кабинет)']
+    admission_options = ['Специалист по анализу медицинских данных', 'Разработчик VR/AR решений', 'DevOps в медицине', 
+                         'Разработчик цифровых медицинских сервисов']
     if method_check == 'fio':
         full_name = name.split()
         full_name = [word.capitalize() for word in full_name]
@@ -119,6 +122,22 @@ async def check_program(name: str, method_check: str):
         data_to_check = programs.loc[(programs['СНИЛС'] == name) &
                                     (programs['Консорциум'].isin(consortium_options)) &
                                     (programs['Статус'].isin(status_options))]['Программа'].tolist()
+    elif method_check == 'link_fio':
+        full_name = name.split()
+        full_name = [word.capitalize() for word in full_name]
+        full_name = ' '.join(full_name)
+
+        data_to_check = programs.loc[(programs['ФИО'] == full_name) &
+                                    (programs['Зачисление'].isin(admission_options))]['Зачисление'].tolist()
+    elif method_check == 'link_snils':
+        snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
+        if not snils_pattern.match(str(name)):
+            cleaned_snils = re.sub(r'\D', '', str(name))
+            formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
+            name = formatted_snils
+
+        data_to_check = programs.loc[(programs['СНИЛС'] == name) &
+                                    (programs['Зачисление'].isin(admission_options))]['Зачисление'].tolist()
     try:
         return data_to_check[0]
     except IndexError:

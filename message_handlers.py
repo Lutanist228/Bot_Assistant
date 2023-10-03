@@ -293,6 +293,46 @@ async def process_check_programm(message: types.Message, state: FSMContext):
                         status='active')
     await state.finish()
 
+@dp.message_handler(state=User_Panel.link_fio)
+async def checking_fio(message: types.Message, state: FSMContext):
+    name = message.text.strip()
+    result = await check_program(name, method_check='link_fio')
+    data = await state.get_data()
+    if result == 'Нет в зачислении':
+        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                    message_id=bot_answer_1.message_id, 
+                    status='active')
+    else:
+        link = data['chats'][result]
+        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+        await db.add_checked_id(user_id=message.from_user.id,
+                                user_name=message.from_user.full_name)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_2.message_id, 
+                        status='active')
+    await state.finish()
+
+@dp.message_handler(state=User_Panel.link_snils)
+async def checking_fio(message: types.Message, state: FSMContext):
+    name = message.text.strip()
+    result = await check_program(name, method_check='link_snils')
+    data = await state.get_data()
+    if result == 'Нет в зачислении':
+        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                    message_id=bot_answer_1.message_id, 
+                    status='active')
+    else:
+        link = data['chats'][result]
+        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+        await db.add_checked_id(user_id=message.from_user.id,
+                                user_name=message.from_user.full_name)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_2.message_id, 
+                        status='active')
+    await state.finish()
+
 #------------------------------------------MODER HANDLERS-----------------------------------------------
 
 @dp.message_handler(state=Moder_Panel.waiting_for_answer)
@@ -392,6 +432,7 @@ async def process_timeout(time_for_sleep: int, state: FSMContext, chat_id: int):
     else:
         return
 
-@dp.message_handler(content_types=types.ContentType.VIDEO)
+# @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
 async def process_videos(message: types.Message):
     print(message.video)
+    print(message.document)

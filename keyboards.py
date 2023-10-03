@@ -14,6 +14,7 @@ glavnoe_menu_keyboard.add(glavnoe_menu_button)
 #----------------------------------------------------------------------------------------------------------------
 user_keyboard = InlineKeyboardMarkup(row_width=1)
 check_programm_keyboard = InlineKeyboardMarkup(row_width=2)
+find_link_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
 check_programm_in_base = InlineKeyboardButton(text='Проверить зачисление', callback_data='check_programm')
@@ -23,11 +24,19 @@ snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', 
 registration_button = InlineKeyboardButton(text='Как регистрироваться', callback_data='registration')
 lk_using_button = InlineKeyboardButton(text='Как пользоваться лк Сеченова', callback_data='lk_using')
 innopolis_button = InlineKeyboardButton(text='Как пользоваться лк Иннополиса', callback_data='innopolis_usage')
+get_link = InlineKeyboardButton(text='Получить ссылку на канал', callback_data='get_link')
+link_fio = InlineKeyboardButton(text='Найти по ФИО', callback_data='link_fio')
+link_snils = InlineKeyboardButton(text='Найти по СНИЛСу', callback_data='link_snils')
 
 check_programm_keyboard.add(fio_check, snils_check, 
                             glavnoe_menu_button)
-user_keyboard.add(question_button, lk_using_button,
-                  user_instruction, innopolis_button)
+user_keyboard.add(question_button, 
+                  get_link, 
+                  lk_using_button,
+                  user_instruction, 
+                  innopolis_button)
+find_link_keyboard.add(link_fio, link_snils,
+                       glavnoe_menu_button)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
@@ -80,7 +89,7 @@ moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_questi
                                add_moder, delete_moder, 
                                make_announcement, upload_database)
 generate_answer_keyboard.add(generate_answer, do_not_generate_answer, 
-                             check_history)
+                             check_history, glavnoe_menu_button)
 
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)
