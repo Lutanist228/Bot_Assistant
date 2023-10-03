@@ -5,7 +5,7 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Global_Data_Storage, cache, db, active_keyboard_status
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
-from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard
+from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard
 from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN, process_timeout, Global_Data_Storage
 from states import User_Panel, Moder_Panel
@@ -125,6 +125,10 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await active_keyboard_status(user_id=callback.from_user.id, 
                             message_id=bot_answer_4.message_id, 
                             status='active')
+    elif callback.data == 'get_link':
+        await User_Panel.get_link.set()
+        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы получить ссылку', 
+                                         reply_markup=find_link_keyboard)
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -179,6 +183,25 @@ async def program_checking(callback: types.CallbackQuery, state: FSMContext):
                                          reply_markup=glavnoe_menu_keyboard)
         await User_Panel.check_snils.set()
         await state.update_data(message_id=bot_answer.message_id)
+
+@dp.callback_query_handler(state=User_Panel.get_link)
+async def program_checking(callback: types.CallbackQuery, state: FSMContext):
+    chat_links = {'Специалист по анализу медицинских данных': 'https://t.me/+zj3--wcW0sNiYmIy',
+                      'Разработчик VR/AR решений': 'https://t.me/+kQEO20362e5kYmNi',
+                      'DevOps в медицине': 'https://t.me/+AFV4pHILEw5hYmYy',
+                      'Разработчик цифровых медицинских сервисов': 'https://t.me/+1tQm27HrkY4xNjhi'}
+    if callback.data == 'link_fio':
+        bot_answer = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.link_fio.set()
+        await state.update_data(message_id=bot_answer.message_id,
+                                chats=chat_links)
+    elif callback.data == 'link_snils':
+        bot_answer = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.link_snils.set()
+        await state.update_data(message_id=bot_answer.message_id,
+                                chats=chat_links)
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
         

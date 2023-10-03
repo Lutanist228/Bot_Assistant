@@ -8,7 +8,10 @@ class User_Panel(StatesGroup):
     check_snils = State()
     boltun_question = State()
     boltun_reply = State()
-    boltun_back_to_menu = State() 
+    boltun_back_to_menu = State()
+    get_link = State()
+    link_fio = State()
+    link_snils = State() 
 
 class Moder_Panel(StatesGroup):
     add_moder = State()

@@ -15,7 +15,7 @@ caches.set_config({
 })
 
 async def excel_data():
-    path = '/home/admin2/Рабочий стол/Bot for CK/programs_edit_13.xlsx'
+    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-2\\programs_edit_13.xlsx'
 
     programs = pd.read_excel(path, sheet_name='Общая таблица')
 
