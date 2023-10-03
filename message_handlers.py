@@ -136,7 +136,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
 
 @dp.message_handler(content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.VIDEO, CT.VOICE, CT.STICKER, CT.POLL, CT.VIDEO_NOTE], state=User_Panel.boltun_question)
 async def wrong_format(message: types.Message, state: FSMContext):
-    await message.reply("""К сожалению, бот не поддерживает предоставленный формат данных.\nПросим ознакомиться с <b>инструкции</b> к боту в главном меню""", reply_markup=glavnoe_menu_keyboard, parse_mode="HTML")
+    await message.reply("""К сожалению, бот не поддерживает предоставленный формат данных.\nПросим ознакомиться с <b>инструкцией</b> к боту в главном меню""", reply_markup=glavnoe_menu_keyboard, parse_mode="HTML")
     await state.finish()
 
 @dp.message_handler(text = "Не нашел подходящего вопроса", state=User_Panel.boltun_reply)
@@ -196,7 +196,7 @@ async def quitting(message: types.Message):
 @dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
 async def wrong_format(message: types.Message):
     await message.delete()
-    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте <b>инструкции</b> к боту", parse_mode="HTML")
+    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте <b>инструкцией</b> к боту", parse_mode="HTML")
 
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):

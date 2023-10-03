@@ -26,7 +26,8 @@ class Database:
                                moder_id INTEGER,
                                moder_name TEXT,
                                chat_type TEXT,
-                               supergroup_id INTEGER)''')
+                               supergroup_id INTEGER,
+                               question_picture INTEGER)''')
             
             await conn.execute("""CREATE TABLE IF NOT EXISTS fuzzy_db (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
