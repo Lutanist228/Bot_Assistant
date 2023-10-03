@@ -24,7 +24,7 @@ from aiogram.types import InputFile
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
     current_state = await state.get_state()
-    if current_state == 'Moder_Panel:waiting_for_answer':
+    if current_state == 'Moder_Panel:answer_panel':
         data = await state.get_data()
         question_id = data['question_id']
         await db.update_question_id(question_id=question_id,
@@ -50,7 +50,6 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'user_instruction':
-        await callback.answer(text="Дождитесь загрузки файла")
         await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
         bot_answer_1 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
@@ -58,7 +57,6 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
                             message_id=bot_answer_1.message_id, 
                             status='active')
     elif callback.data == 'moder_instruction':
-        await callback.answer(text="Дождитесь загрузки файла")
         await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPWUJ24mmC2G8ozWpjDW05PxEorRyAAI7PwACr8VQSBscvkHFAmYDMAQ')
         await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
@@ -101,7 +99,8 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await Moder_Panel.make_announcement.set()
         await callback.message.edit_text('Введите сообщение, которое хотите сделать объявлением', reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'registration':
-        await callback.answer(text="Дождитесь загрузки файла")
+        await bot.send_chat_action(chat_id=callback.from_user.id,
+                                   action='upload_document')
         await bot.send_document(chat_id=callback.from_user.id,
                                 document='BAACAgIAAxkBAAJ9-WUWcKHKC88mq-EXiF4woyUWle7vAALXMQACCAa5SLfFZK6m08nCMAQ')
         bot_answer_2 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
@@ -109,19 +108,23 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
                             message_id=bot_answer_2.message_id, 
                             status='active')
     elif callback.data == 'lk_using':
-        await callback.answer(text="Дождитесь загрузки файла")
+        await bot.send_chat_action(chat_id=callback.from_user.id,
+                                   action='upload_document')
         await bot.send_document(chat_id=callback.from_user.id,
                         document='BAACAgIAAxkBAAJ9_GUWcMTCVGHzUTM7XexCL8F1ErdeAALYMQACCAa5SI0J7nAiv75_MAQ')
-        bot_answer_2 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+        bot_answer_3 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await active_keyboard_status(user_id=callback.from_user.id, 
-                            message_id=bot_answer_2.message_id, 
+                            message_id=bot_answer_3.message_id, 
                             status='active')
     elif callback.data == 'innopolis_usage':
-        await callback.answer(text="Дождитесь загрузки файла")
-        with open(file=r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\Instrukciya_dlya_obuchayushchihsya.pdf", mode="rb") as document:
-            doc = InputFile(document)
-            await bot.send_document(chat_id=callback.from_user.id,
-                        document=doc)
+        await bot.send_chat_action(chat_id=callback.from_user.id,
+                                   action='upload_document')
+        await bot.send_document(chat_id=callback.from_user.id,
+                                document='BQACAgQAAxkBAAKPlWUcEzWLAhcQKm5ByYe5JfKp74gIAAKrEQACxmLhUHN10mpONAMsMAQ')
+        bot_answer_4 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+        await active_keyboard_status(user_id=callback.from_user.id, 
+                            message_id=bot_answer_4.message_id, 
+                            status='active')
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -229,13 +232,13 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
                     await bot.send_photo(chat_id=callback.from_user.id,
                                             photo=data['picture'],
                                             caption='Приложенный скриншот к вопросу')
-                await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                await callback.message.answer('''Проверьте историю сообщений для пониманию контекста или сгенирируйте ответ ботом.\nКнопка "Главное меню" вернет в главное меню.''', 
                                                 reply_markup=generate_answer_keyboard)
-                await Moder_Panel.waiting_for_answer.set()
+                await Moder_Panel.answer_panel.set()
             except KeyError:
-                await callback.message.answer('''Напишите свой ответ или скопируйте ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
+                await callback.message.answer('''Проверьте историю сообщений для пониманию контекста или сгенирируйте ответ ботом.\nКнопка "Главное меню" вернет в главное меню.''', 
                                                 reply_markup=generate_answer_keyboard)
-                await Moder_Panel.waiting_for_answer.set()
+                await Moder_Panel.answer_panel.set()
     elif callback.data == 'close_question':
         data = await state.get_data()
         question_id = data['question_id']
@@ -271,7 +274,7 @@ async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
         for question in questions:
             if question[7] == 'Вопрос взят':
                 continue
-            history += f'Дата-время: {question[6]}\nВопрос: {question[5]}\nОтвет: {question[8]}\n\n'
+            history += f'Дата-время: {question[5]}\nВопрос: {question[4]}\nОтвет: {question[7]}\n\n'
         await callback.message.edit_text(f'{history} Введите свой ответ или вернитесь в главное меню', 
                                          reply_markup=glavnoe_menu_keyboard)
         await Moder_Panel.waiting_for_answer.set()

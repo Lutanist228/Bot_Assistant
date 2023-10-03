@@ -195,8 +195,9 @@ async def quitting(message: types.Message):
 
 @dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
 async def wrong_format(message: types.Message):
-    await message.delete()
-    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
+    if message.chat.type == 'private':
+        await message.delete()
+        await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
 
 @dp.message_handler(commands=['question'])
 async def process_question_command(message: types.Message):
@@ -392,6 +393,7 @@ async def process_timeout(time_for_sleep: int, state: FSMContext, chat_id: int):
     else:
         return
 
-@dp.message_handler(content_types=types.ContentType.VIDEO)
+# @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
 async def process_videos(message: types.Message):
     print(message.video)
+    print(message.document)

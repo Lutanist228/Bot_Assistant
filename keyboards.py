@@ -80,7 +80,7 @@ moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_questi
                                add_moder, delete_moder, 
                                make_announcement, upload_database)
 generate_answer_keyboard.add(generate_answer, do_not_generate_answer, 
-                             check_history)
+                             check_history, glavnoe_menu_button)
 
 #----------------------------------------------------------------------------------------------------------------
 moder_choose_question_keyboard = InlineKeyboardMarkup(row_width=2)
