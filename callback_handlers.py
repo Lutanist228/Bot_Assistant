@@ -23,8 +23,8 @@ from aiogram.types import InputFile
 
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state == 'Moder_Panel:answer_panel':
+    current_state = await state.get_state() 
+    if current_state == 'Moder_Panel:answer_panel' or current_state == 'Moder_Panel:waiting_for_answer':
         data = await state.get_data()
         question_id = data['question_id']
         await db.update_question_id(question_id=question_id,
@@ -42,7 +42,10 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
             else:
                 await callback.message.edit_text('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
             return
-    bot_answer = await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
+    try:
+        bot_answer = await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
+    except exceptions.MessageNotModified:
+        pass
     await active_keyboard_status(user_id=callback.from_user.id, 
                                 message_id=bot_answer.message_id, 
                                 status='active')
@@ -70,7 +73,8 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
                                      status='active')
         await process_timeout(time_for_sleep=600,
                         state=state,
-                        chat_id=callback.from_user.id)
+                        chat_id=callback.from_user.id,
+                        chat_type=callback.message.chat.type)
     elif callback.data == 'number_unanswered':
         # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
         number = await db.get_number_of_unanswered_questions()
@@ -129,6 +133,13 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await User_Panel.get_link.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы получить ссылку', 
                                          reply_markup=find_link_keyboard)
+    elif callback.data == 'unical_users':
+        unical_users = set()
+        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
+        for id in ids:
+            unical_users.add(id[0])
+        send_time = len(unical_users) / 20 * 3
+        await callback.message.answer(f'Количество уникальных пользователей: {len(unical_users)}\nПримерное время рассылки для них: {round(send_time, 2)} секунд')
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 

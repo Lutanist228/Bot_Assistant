@@ -4,6 +4,7 @@ from aiogram.utils.exceptions import TelegramAPIError
 from aiogram.utils import exceptions
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.types.message import ContentType as CT
+
 import json
 import asyncio
 
@@ -46,13 +47,18 @@ async def process_start_message(message: types.Message, state: FSMContext):
                 else:
                     await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
                 return
-        await message.delete()
         bot_answer = await message.answer('''Выберите дальнейшее действие.\nПеред началом работы с ботом настоятельно рекомендуем ознакомиться с "Пользовательской инструкцией" к боту''', reply_markup=user_keyboard)
         await active_keyboard_status(user_id=message.from_user.id, 
                                      message_id=bot_answer.message_id, 
                                      status='active')
     else:
-        await message.reply('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "/question ваш вопрос"')
+        bot_supergroup = await message.answer('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "<b>question</b> ваш вопрос"', parse_mode=types.ParseMode.HTML)
+        await process_timeout(time_for_sleep=20, chat_id=message.chat.id, chat_type=message.chat.type, 
+                              message_id=bot_supergroup.message_id)
+        try:
+            await message.delete()
+        except exceptions.MessageCantBeDeleted:
+            pass
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -193,37 +199,33 @@ async def quitting(message: types.Message):
         message_id=bot_answer.message_id, 
         status='active')
 
-@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
-async def wrong_format(message: types.Message):
-    if message.chat.type == 'private':
-        await message.delete()
-        await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
-
-@dp.message_handler(commands=['question'])
+@dp.message_handler(text_startswith='question')
 async def process_question_command(message: types.Message):
     # Обработка в чате вопроса через команду /question
-    if len(message.text) > 10 and not '@SechenovCK_bot' in message.text:
+    if len(message.text) > 10:
         chat_type = message.chat.type
         supergroup_id = message.chat.id
-        question = message.text.split('/question')[-1]
+        question = message.text.split('question')[-1]
         await db.add_question(user_id=message.from_user.id, 
                                             user_name=message.from_user.full_name, 
                                             message_id=message.message_id,
                                             question=question,
                                             chat_type=chat_type,
                                             supergroup_id=supergroup_id)
-    elif '@SechenovCK_bot' in message.text:
-        try:
-            await message.delete()
-        except exceptions.MessageCantBeDeleted:
-            pass
-        await message.answer('После /question через пробел напишите свой вопрос без использования тега бота')
     else:
         try:
             await message.delete()
         except exceptions.MessageCantBeDeleted:
             pass
-        await message.answer('После /question через пробел напишите свой вопрос')
+        bot_delete = await message.answer('После <b>question</b> через пробел напишите свой вопрос.', parse_mode=types.ParseMode.HTML)
+        await process_timeout(time_for_sleep=30, chat_id=message.chat.id, chat_type=message.chat.type,
+                              message_id=bot_delete.message_id)
+
+@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
+async def wrong_format(message: types.Message):
+    if message.chat.type == 'private':
+        await message.delete()
+        await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
 
 @dp.message_handler(state=User_Panel.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
@@ -357,8 +359,12 @@ async def process_answer(message: types.Message, state: FSMContext):
         await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
         await state.finish()
     else:
-        await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
-        await state.finish()
+        try:
+            await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+            await state.finish()
+        except exceptions.BotBlocked:
+            await message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
+                                    reply_markup=glavnoe_menu_keyboard)
         # Блок по добавлению в базу ответов
     await message.answer('Внести его в базу данных вопросов?', reply_markup=question_base_keyboard)
     await Moder_Panel.adding_to_base.set()
@@ -389,11 +395,11 @@ async def process_announcement(message: types.Message, state: FSMContext):
 
 #------------------------------------------ERROR HANDLERS-----------------------------------------------
 
-@dp.errors_handler(exception=TelegramAPIError)
-async def process_errors(update: types.Update, exception: exceptions):
-    if isinstance(exception, exceptions.BotBlocked):
-        await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
-                                    reply_markup=glavnoe_menu_keyboard)
+# @dp.errors_handler(exception=TelegramAPIError)
+# async def process_errors(update: types.Update, exception: exceptions):
+#     if isinstance(exception, exceptions.BotBlocked):
+#         await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
+#                                     reply_markup=glavnoe_menu_keyboard)
 
 #------------------------------------------ADDITIONAL FUNCS----------------------------------------------
 
@@ -420,18 +426,24 @@ async def active_keyboard_status(user_id: int, message_id: int, status: str):
         info[message_id] = status
         await cache.set(user_id, info)
 
-async def process_timeout(time_for_sleep: int, state: FSMContext, chat_id: int):
-    await asyncio.sleep(time_for_sleep)
-    if await state.get_state() == 'User_Panel:boltun_question':
-        await state.finish()
-        bot_answer = await bot.send_message(chat_id=chat_id, 
-                               text='Вы превисили время на вопрос. Возвращаю вас обратно в меню',
-                               reply_markup=user_keyboard)
-        await active_keyboard_status(user_id=chat_id, 
-            message_id=bot_answer.message_id, 
-            status='active')
-    else:
-        return
+async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, message_id: int = None, state: FSMContext = None):
+    if chat_type == 'private':
+        await asyncio.sleep(time_for_sleep)
+        if await state.get_state() == 'User_Panel:boltun_question':
+            await state.finish()
+            bot_answer = await bot.send_message(chat_id=chat_id, 
+                                text='Вы превисили время на вопрос. Возвращаю вас обратно в меню',
+                                reply_markup=user_keyboard)
+            await active_keyboard_status(user_id=chat_id, 
+                message_id=bot_answer.message_id, 
+                status='active')
+        else:
+            return
+    elif chat_type == 'supergroup':
+        await asyncio.sleep(time_for_sleep)
+        await bot.delete_message(chat_id=chat_id,
+                                 message_id=message_id)
+
 
 # @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
 async def process_videos(message: types.Message):

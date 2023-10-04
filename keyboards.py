@@ -21,7 +21,7 @@ check_programm_in_base = InlineKeyboardButton(text='Проверить зачи�
 user_instruction = InlineKeyboardButton(text='Инструкция для пользователей', callback_data='user_instruction')
 fio_check = InlineKeyboardButton(text='Проверить по ФИО', callback_data='check_fio')
 snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='check_snils')
-registration_button = InlineKeyboardButton(text='Как регистрироваться', callback_data='registration')
+registration_button = InlineKeyboardButton(text='Как регистрироваться в лк Сеченова', callback_data='registration')
 lk_using_button = InlineKeyboardButton(text='Как пользоваться лк Сеченова', callback_data='lk_using')
 innopolis_button = InlineKeyboardButton(text='Как пользоваться лк Иннополиса', callback_data='innopolis_usage')
 get_link = InlineKeyboardButton(text='Получить ссылку на канал', callback_data='get_link')
@@ -34,7 +34,8 @@ user_keyboard.add(question_button,
                   get_link, 
                   lk_using_button,
                   user_instruction, 
-                  innopolis_button)
+                  innopolis_button,
+                  registration_button)
 find_link_keyboard.add(link_fio, link_snils,
                        glavnoe_menu_button)
 
@@ -79,6 +80,7 @@ do_not_generate_answer = InlineKeyboardButton(text='Не генерироват�
 upload_database = InlineKeyboardButton(text='Выгрузить базу', callback_data='upload_base')
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
 moder_instruction = InlineKeyboardButton(text='Инструкция для модераторов', callback_data='moder_instruction')
+unical_users = InlineKeyboardButton(text='Количество уникальных пользователей', callback_data='unical_users')
 
 common_moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
                                 moder_instruction, user_instruction)
@@ -87,7 +89,8 @@ make_announcement = InlineKeyboardButton(text='Сделать объявлени
 
 moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
                                add_moder, delete_moder, 
-                               make_announcement, upload_database)
+                               make_announcement, upload_database,
+                               unical_users)
 generate_answer_keyboard.add(generate_answer, do_not_generate_answer, 
                              check_history, glavnoe_menu_button)
 
