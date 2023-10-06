@@ -44,6 +44,13 @@ class Database:
                                user_id INTEGER,
                                user_name TEXT)''')
             
+            await conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name CHAR,
+                               suggestion TEXT,
+                               picture_id TEXT)''')
+            
     async def create_infromation_about_moder(self):
         async with aiosqlite.connect('database.db') as conn:
             await conn.execute('''CREATE TABLE IF NOT EXISTS moder_information
@@ -237,3 +244,10 @@ class Database:
             result = await cursor.fetchall()  
             return result
         
+    async def add_suggestion(self, user_id: int, user_name: str, suggestion: str, picture_id: str = None):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('INSERT INTO suggestions (user_id, user_name, suggestion, picture_id) VALUES (?, ?, ?, ?)',
+                                           (user_id, user_name, suggestion, picture_id)):
+            await self.connection.commit()
+            

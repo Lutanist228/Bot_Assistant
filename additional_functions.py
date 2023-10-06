@@ -123,12 +123,9 @@ async def check_program(name: str, method_check: str):
                                     (programs['Консорциум'].isin(consortium_options)) &
                                     (programs['Статус'].isin(status_options))]['Программа'].tolist()
     elif method_check == 'link_fio':
-        full_name = name.split()
-        full_name = [word.capitalize() for word in full_name]
-        full_name = ' '.join(full_name)
-
-        data_to_check = programs.loc[(programs['ФИО'] == full_name) &
+        data_to_check = programs.loc[(programs['ФИО'].str.lower() == name.lower()) &
                                     (programs['Зачисление'].isin(admission_options))]['Зачисление'].tolist()
+        
     elif method_check == 'link_snils':
         snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
         if not snils_pattern.match(str(name)):
@@ -138,6 +135,18 @@ async def check_program(name: str, method_check: str):
 
         data_to_check = programs.loc[(programs['СНИЛС'] == name) &
                                     (programs['Зачисление'].isin(admission_options))]['Зачисление'].tolist()
+    elif method_check == 'tutor_fio':
+        data_to_check = programs.loc[(programs['ФИО'].str.lower() == name.lower())]['Тьютор'].tolist()
+
+    elif method_check == 'tutor_snils':
+        snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
+        if not snils_pattern.match(str(name)):
+            cleaned_snils = re.sub(r'\D', '', str(name))
+            formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
+            name = formatted_snils
+
+        data_to_check = programs.loc[(programs['СНИЛС'] == name)]['Тьютор'].tolist()
+
     try:
         return data_to_check[0]
     except IndexError:

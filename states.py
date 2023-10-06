@@ -3,15 +3,13 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 class User_Panel(StatesGroup):
     making_question = State()
     gpt_question = State()
-    check_programm = State()
-    check_fio = State()
-    check_snils = State()
+    check = State()
     boltun_question = State()
     boltun_reply = State()
     boltun_back_to_menu = State()
-    get_link = State()
-    link_fio = State()
-    link_snils = State() 
+    fio = State()
+    snils = State()
+    suggestion = State() 
 
 class Moder_Panel(StatesGroup):
     add_moder = State()

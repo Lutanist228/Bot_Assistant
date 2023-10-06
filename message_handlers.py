@@ -57,7 +57,7 @@ async def process_start_message(message: types.Message, state: FSMContext):
                               message_id=bot_supergroup.message_id)
         try:
             await message.delete()
-        except exceptions.MessageCantBeDeleted:
+        except (exceptions.MessageCantBeDeleted, exceptions.MessageToDeleteNotFound):
             pass
 
 #------------------------------------------USER HANDLERS------------------------------------------------
@@ -248,93 +248,145 @@ async def back_to_start(message: types.Message):
             return
     await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
 
-@dp.message_handler(state=User_Panel.check_fio)
+@dp.message_handler(state=User_Panel.fio)
 async def checking_fio(message: types.Message, state: FSMContext):
     name = message.text.strip()
-    result = await check_program(name, method_check='fio')
-    if result == 'Нет в зачислении':
-        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                    message_id=bot_answer_1.message_id, 
-                    status='active')
-    else:
-        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
-#         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
-#         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
-# Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
-# Пройдите, пожалуйста, регистрацию на сайте
-# https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
-#         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
-        await db.add_checked_id(user_id=message.from_user.id,
-                                user_name=message.from_user.full_name)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                        message_id=bot_answer_2.message_id, 
-                        status='active')
-    await state.finish()
-
-@dp.message_handler(state=User_Panel.check_snils)
-async def process_check_programm(message: types.Message, state: FSMContext):
-    name = message.text.strip()
-    result = await check_program(name, method_check='snils')
-    if result == 'Нет в зачислении':
-        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                    message_id=bot_answer_1.message_id, 
-                    status='active')
-    else:
-        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
-#         await message.answer(f'Ваша программа зачисления:\n"{result}"\nЕсли вы хотите поменять, то напишите тьютору или через главное меню в вопросе',  reply_markup=user_keyboard)
-#         await message.answer('''Ваша заявка была одорена для зачисления на курс цифровой кафедры. 
-# Чтобы все учебные материалы стали вам доступны, нам необходимо зарегистрировать вас в Личном кабинете Сеченовского Университета. 
-# Пройдите, пожалуйста, регистрацию на сайте
-# https://abiturient.sechenov.ru/auth/?registration=yes&lang_ui=ru\n\nНиже видео с регистрацией''')
-#         await bot.send_video(chat_id=message.from_user.id, video='BAACAgIAAxkBAAI0ZGUFbRF-egctzuSd6VcgBvcXpZ_bAAIjNAAC2sExSOC6b27__vhVMAQ')
-        await db.add_checked_id(user_id=message.from_user.id,
-                            user_name=message.from_user.full_name)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                        message_id=bot_answer_2.message_id, 
-                        status='active')
-    await state.finish()
-
-@dp.message_handler(state=User_Panel.link_fio)
-async def checking_fio(message: types.Message, state: FSMContext):
-    name = message.text.strip()
-    result = await check_program(name, method_check='link_fio')
     data = await state.get_data()
-    if result == 'Нет в зачислении':
-        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                    message_id=bot_answer_1.message_id, 
-                    status='active')
-    else:
-        link = data['chats'][result]
-        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
-        await db.add_checked_id(user_id=message.from_user.id,
-                                user_name=message.from_user.full_name)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                        message_id=bot_answer_2.message_id, 
+    method = data['method']
+    if method == 'link':
+        result = await check_program(name, method_check='link_fio')
+        if result == 'Нет в зачислении':
+            bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_1.message_id, 
                         status='active')
-    await state.finish()
+        else:
+            link = data['chats'][result]
+            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            await db.add_checked_id(user_id=message.from_user.id,
+                                    user_name=message.from_user.full_name)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer_2.message_id, 
+                            status='active')
+        await state.finish()
+    elif method == 'tutor':
+        result = await check_program(name, method_check='tutor_fio')
+        if result == 'Нет в зачислении':
+            bot_answer_3 = await message.answer('За вами не закреплен тьютор, задайте новый вопрос и сообщите об этом', reply_markup=user_keyboard)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_3.message_id, 
+                        status='active')
+        else:
+            link = data['tutor'][result]
+            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {link}', reply_markup=user_keyboard)
+            await db.add_checked_id(user_id=message.from_user.id,
+                                    user_name=message.from_user.full_name)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer_4.message_id, 
+                            status='active')
+        await state.finish()
 
-@dp.message_handler(state=User_Panel.link_snils)
+@dp.message_handler(state=User_Panel.snils)
 async def checking_fio(message: types.Message, state: FSMContext):
     name = message.text.strip()
-    result = await check_program(name, method_check='link_snils')
     data = await state.get_data()
-    if result == 'Нет в зачислении':
-        bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+    method = data['method']
+    if method == 'link':
+        result = await check_program(name, method_check='link_snils')
+        if result == 'Нет в зачислении':
+            bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_1.message_id, 
+                        status='active')
+        else:
+            link = data['chats'][result]
+            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            await db.add_checked_id(user_id=message.from_user.id,
+                                    user_name=message.from_user.full_name)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer_2.message_id, 
+                            status='active')
+        await state.finish()
+    elif method == 'tutor':
+        result = await check_program(name, method_check='tutor_snils')
+        if result == 'Нет в зачислении':
+            bot_answer_3 = await message.answer('За вами не закреплен тьютор, задайте новый вопрос и сообщите об этом', reply_markup=user_keyboard)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_3.message_id, 
+                        status='active')
+        else:
+            link = data['tutor'][result]
+            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {link}', reply_markup=user_keyboard)
+            await db.add_checked_id(user_id=message.from_user.id,
+                                    user_name=message.from_user.full_name)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer_4.message_id, 
+                            status='active')
+        await state.finish()
+
+@dp.message_handler(state=User_Panel.suggestion, content_types=[CT.TEXT, CT.PHOTO])
+async def process_suggestion(message: types.Message, state: FSMContext):
+    if message.photo:
+        if message.caption:
+            await db.add_suggestion(user_id=message.from_user.id,
+                                    user_name=message.from_user.full_name,
+                                    suggestion=message.caption,
+                                    picture_id=message.photo[-1].file_id)
+        else:
+            await db.add_suggestion(user_id=message.from_user.id,
+                                    user_name=message.from_user.full_name,
+                                    suggestion='Предложение на фото',
+                                    picture_id=message.photo[-1].file_id)
+        bot_answer_1 = await message.answer('Ваше предложение отправлено', reply_markup=user_keyboard)
         await active_keyboard_status(user_id=message.from_user.id, 
-                    message_id=bot_answer_1.message_id, 
-                    status='active')
+                        message_id=bot_answer_1.message_id, 
+                        status='active')
+        await state.finish()
     else:
-        link = data['chats'][result]
-        bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
-        await db.add_checked_id(user_id=message.from_user.id,
-                                user_name=message.from_user.full_name)
+        await db.add_suggestion(user_id=message.from_user.id,
+                                user_name=message.from_user.full_name,
+                                suggestion=message.text)
+        bot_answer_2 = await message.answer('Ваше предложение отправлено', reply_markup=user_keyboard)
         await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_2.message_id, 
                         status='active')
-    await state.finish()
+        await state.finish()
+
+# @dp.message_handler(state=User_Panel.check_fio)
+# async def checking_fio(message: types.Message, state: FSMContext):
+#     name = message.text.strip()
+#     result = await check_program(name, method_check='fio')
+#     if result == 'Нет в зачислении':
+#         bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+#         await active_keyboard_status(user_id=message.from_user.id, 
+#                     message_id=bot_answer_1.message_id, 
+#                     status='active')
+#     else:
+#         bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
+#         await db.add_checked_id(user_id=message.from_user.id,
+#                                 user_name=message.from_user.full_name)
+#         await active_keyboard_status(user_id=message.from_user.id, 
+#                         message_id=bot_answer_2.message_id, 
+#                         status='active')
+#     await state.finish()
+
+# @dp.message_handler(state=User_Panel.check_snils)
+# async def process_check_programm(message: types.Message, state: FSMContext):
+#     name = message.text.strip()
+#     result = await check_program(name, method_check='snils')
+#     if result == 'Нет в зачислении':
+#         bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+#         await active_keyboard_status(user_id=message.from_user.id, 
+#                     message_id=bot_answer_1.message_id, 
+#                     status='active')
+#     else:
+#         bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
+#         await db.add_checked_id(user_id=message.from_user.id,
+#                             user_name=message.from_user.full_name)
+#         await active_keyboard_status(user_id=message.from_user.id, 
+#                         message_id=bot_answer_2.message_id, 
+#                         status='active')
+#     await state.finish()
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
 
