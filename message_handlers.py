@@ -48,11 +48,14 @@ async def process_start_message(message: types.Message, state: FSMContext):
                     await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
                 return
         bot_answer = await message.answer('''Выберите дальнейшее действие.\nПеред началом работы с ботом настоятельно рекомендуем ознакомиться с "Пользовательской инструкцией" к боту''', reply_markup=user_keyboard)
+        # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
         await active_keyboard_status(user_id=message.from_user.id, 
                                      message_id=bot_answer.message_id, 
                                      status='active')
     else:
+        # Пересылка пользователя в личную переписку с ботом
         bot_supergroup = await message.answer('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "<b>question</b> ваш вопрос"', parse_mode=types.ParseMode.HTML)
+        # Удаления сообщения, отправленного ботом
         await process_timeout(time_for_sleep=20, chat_id=message.chat.id, chat_type=message.chat.type, 
                               message_id=bot_supergroup.message_id)
         try:
@@ -66,11 +69,13 @@ async def process_start_message(message: types.Message, state: FSMContext):
 async def fuzzy_handling(message: types.Message, state: FSMContext):
     markup = InlineKeyboardMarkup()
     global BOLTUN_PATTERN
+    # Если есть фото в сообщении, то будет брать из него описание или будет просто грузить фото без сообщения
     if message.photo:
         if message.caption:
             await state.update_data(question=message.caption)
             Global_Data_Storage.question_temp_inf = message.caption
         else:
+            # Генерация сообщения для модеров
             await state.update_data(question='By system: Проблема на приложенном фото')
     else:
         await state.update_data(question=message.text) 
@@ -92,6 +97,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await bot.edit_message_reply_markup(chat_id=message.from_user.id,
                                                 message_id=data['message_id'],
                                                 reply_markup=markup)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                 message_id=bot_answer_1.message_id,     
                 status='not active')
@@ -108,6 +114,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await bot.edit_message_reply_markup(chat_id=message.from_user.id,
                                     message_id=data['message_id'],
                                     reply_markup=markup)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                 message_id=bot_answer_2.message_id, 
                 status='not active')
@@ -119,6 +126,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                 )
             await User_Panel.boltun_reply.set()
     else:
+        # Проверка есть ли фото в сообщении и далее сохраняет описание, которое было записано ранее
         if message.photo:
             await db.add_question(user_id=message.from_user.id, 
                                     user_name=message.from_user.full_name, 
@@ -136,6 +144,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
         # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
         await state.finish()
         bot_answer_3 = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+        # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
         await active_keyboard_status(user_id=message.from_user.id, 
             message_id=bot_answer_3.message_id, 
             status='active')
@@ -156,6 +165,7 @@ async def redirect_question(message: types.Message, state: FSMContext):
                                         chat_type=message.chat.type)
     await state.finish()
     bot_answer = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+    # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
     await active_keyboard_status(user_id=message.from_user.id, 
                 message_id=bot_answer.message_id,     
                 status='active')
@@ -180,6 +190,7 @@ async def on_reply_processing(message: types.Message):
 async def quitting(message: types.Message, state: FSMContext):
     bot_answer = await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
     await state.finish()
+    # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
     await active_keyboard_status(user_id=message.from_user.id, 
             message_id=bot_answer.message_id, 
             status='active')
@@ -195,14 +206,16 @@ async def quitting(message: types.Message):
                                         chat_type=message.chat.type, 
                                         message_id=message.message_id)
     bot_answer = await message.reply('Вопрос был передан', reply_markup=glavnoe_menu_keyboard)
+    # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
     await active_keyboard_status(user_id=message.from_user.id, 
         message_id=bot_answer.message_id, 
         status='active')
 
 @dp.message_handler(text_startswith='question')
 async def process_question_command(message: types.Message):
-    # Обработка в чате вопроса через команду /question
+    # Обработка в чате вопроса через команду "question вопрос". Проверка, чтобы был не пустой вопрос
     if len(message.text) > 10:
+        # Получаем, что это сообщение из канала и сохраняем айди чата, айди сообщения куда будет отсылать сообщение
         chat_type = message.chat.type
         supergroup_id = message.chat.id
         question = message.text.split('question')[-1]
@@ -213,11 +226,13 @@ async def process_question_command(message: types.Message):
                                             chat_type=chat_type,
                                             supergroup_id=supergroup_id)
     else:
+        # Пробуем удалить сообщение если не подходит по критериям, для анти спама
         try:
             await message.delete()
         except exceptions.MessageCantBeDeleted:
             pass
         bot_delete = await message.answer('После <b>question</b> через пробел напишите свой вопрос.', parse_mode=types.ParseMode.HTML)
+        # Отсчет тайминга удаления предыдущего сообщения от бота, чтобы не было спама
         await process_timeout(time_for_sleep=30, chat_id=message.chat.id, chat_type=message.chat.type,
                               message_id=bot_delete.message_id)
 
@@ -250,37 +265,48 @@ async def back_to_start(message: types.Message):
 
 @dp.message_handler(state=User_Panel.fio)
 async def checking_fio(message: types.Message, state: FSMContext):
+    # Удаляем не нужные пробелы в сообщении получаем информацию из состояния. А именно метод того, что хотим найти ссылка/тьютор и т.д.
     name = message.text.strip()
     data = await state.get_data()
     method = data['method']
     if method == 'link':
+        # Отправляем запрос по поиску нужной информации с нужным методом
         result = await check_program(name, method_check='link_fio')
         if result == 'Нет в зачислении':
             bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_1.message_id, 
                         status='active')
         else:
+            # Достаем из словаря нужное значение по ключу
             link = data['chats'][result]
-            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n{result}\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                             message_id=bot_answer_2.message_id, 
                             status='active')
         await state.finish()
     elif method == 'tutor':
+        # Отправляем запрос по поиску нужной информации с нужным методом
         result = await check_program(name, method_check='tutor_fio')
         if result == 'Нет в зачислении':
             bot_answer_3 = await message.answer('За вами не закреплен тьютор, задайте новый вопрос и сообщите об этом', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_3.message_id, 
                         status='active')
         else:
-            link = data['tutor'][result]
-            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {link}', reply_markup=user_keyboard)
+            # Достаем из словаря нужное значение по ключу
+            tutor = data['tutor'][result.strip()]
+            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {tutor}', reply_markup=user_keyboard)
+            # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                             message_id=bot_answer_4.message_id, 
                             status='active')
@@ -295,14 +321,18 @@ async def checking_fio(message: types.Message, state: FSMContext):
         result = await check_program(name, method_check='link_snils')
         if result == 'Нет в зачислении':
             bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_1.message_id, 
                         status='active')
         else:
+            # Достаем из словаря нужное значение по ключу
             link = data['chats'][result]
-            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n{result}\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                             message_id=bot_answer_2.message_id, 
                             status='active')
@@ -311,22 +341,29 @@ async def checking_fio(message: types.Message, state: FSMContext):
         result = await check_program(name, method_check='tutor_snils')
         if result == 'Нет в зачислении':
             bot_answer_3 = await message.answer('За вами не закреплен тьютор, задайте новый вопрос и сообщите об этом', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_3.message_id, 
                         status='active')
         else:
-            link = data['tutor'][result]
-            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {link}', reply_markup=user_keyboard)
+            # Достаем из словаря нужное значение по ключу
+            tutor = data['tutor'][result.strip()]
+            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {tutor}', reply_markup=user_keyboard)
+            # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
             await active_keyboard_status(user_id=message.from_user.id, 
                             message_id=bot_answer_4.message_id, 
                             status='active')
         await state.finish()
 
+# Обработка предложений/улучшений
 @dp.message_handler(state=User_Panel.suggestion, content_types=[CT.TEXT, CT.PHOTO])
 async def process_suggestion(message: types.Message, state: FSMContext):
+    # Проверка есть ли фото в сообщении
     if message.photo:
+        # Проверка есть ли описания под фоткой
         if message.caption:
             await db.add_suggestion(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name,
@@ -338,6 +375,7 @@ async def process_suggestion(message: types.Message, state: FSMContext):
                                     suggestion='Предложение на фото',
                                     picture_id=message.photo[-1].file_id)
         bot_answer_1 = await message.answer('Ваше предложение отправлено', reply_markup=user_keyboard)
+        # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
         await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_1.message_id, 
                         status='active')
@@ -347,6 +385,7 @@ async def process_suggestion(message: types.Message, state: FSMContext):
                                 user_name=message.from_user.full_name,
                                 suggestion=message.text)
         bot_answer_2 = await message.answer('Ваше предложение отправлено', reply_markup=user_keyboard)
+        # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
         await active_keyboard_status(user_id=message.from_user.id, 
                         message_id=bot_answer_2.message_id, 
                         status='active')
@@ -456,9 +495,12 @@ async def process_announcement(message: types.Message, state: FSMContext):
 #------------------------------------------ADDITIONAL FUNCS----------------------------------------------
 
 async def active_keyboard_status(user_id: int, message_id: int, status: str):
+    # Получаем айди пользователя, айди сообщения, в котором хранится активная клавиатура. Создание пустой Inline клавиатуры
     markup = InlineKeyboardMarkup()
+    # Создание кеш-хранилища под айди пользователя, где будут хранится все сообщения с клавами. Удаления этого хранилища еще
     info = await cache.get(user_id)
     await cache.delete(user_id)
+    # Прохождение по словарю с сообщениями и состояниями. Перевод всех сообщений до нового в неактивное состояние и редактировние клавы
     if info:
         for key, value in info.items():
             if value == 'not active':
@@ -468,18 +510,26 @@ async def active_keyboard_status(user_id: int, message_id: int, status: str):
             elif value == 'active' and message_id != key:
                 value = 'not active'
                 info[key] = value
-                await bot.edit_message_reply_markup(chat_id=user_id, 
-                                                    message_id=key,
-                                                    reply_markup=markup)
+                try:
+                    await bot.edit_message_reply_markup(chat_id=user_id, 
+                                                        message_id=key,
+                                                        reply_markup=markup)
+                except exceptions.MessageToEditNotFound:
+                    pass
+        # Добавление нового сообщения со статусом
         info[message_id] = status
         await cache.set(user_id, info)
     else:
         info = {}
         info[message_id] = status
         await cache.set(user_id, info)
+        # Очистка кеш хранилища через час, чтобы не нагружать сервак. По идее должно все работать
+        # await asyncio.sleep(3600)
+        # await cache.delete(user_id)
 
 async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, message_id: int = None, state: FSMContext = None):
     if chat_type == 'private':
+        # Таймаут на задачу вопроса и возврат пользователя если он так и не задал вопрос (проверяет по измению состояния)
         await asyncio.sleep(time_for_sleep)
         if await state.get_state() == 'User_Panel:boltun_question':
             await state.finish()

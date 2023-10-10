@@ -97,11 +97,15 @@ async def create_inline_keyboard(rows):
 
 async def check_program(name: str, method_check: str):
     programs = await cache.get('excel_data')
+    enrolled_programs = await cache.get('enrolled_data')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА', 'да?', 'ДА?']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 
                       'Сеченовский Университет (регистрация через личный кабинет)']
     admission_options = ['Специалист по анализу медицинских данных', 'Разработчик VR/AR решений', 'DevOps в медицине', 
                          'Разработчик цифровых медицинских сервисов']
+    admission = {'VR Разработчик решений виртуальной и дополненной реальности в медицине': 'VR',
+                 'Специалист по анализу медицинских данных': 'Анализ', 'Разработчик цифровых медицинских сервисов': 'Разработка',
+                 'DevOps в медицине': 'DevOps'}
     if method_check == 'fio':
         full_name = name.split()
         full_name = [word.capitalize() for word in full_name]
@@ -123,9 +127,14 @@ async def check_program(name: str, method_check: str):
                                     (programs['Консорциум'].isin(consortium_options)) &
                                     (programs['Статус'].isin(status_options))]['Программа'].tolist()
     elif method_check == 'link_fio':
-        data_to_check = programs.loc[(programs['ФИО'].str.lower() == name.lower()) &
-                                    (programs['Зачисление'].isin(admission_options))]['Зачисление'].tolist()
-        
+        for sheet_name in enrolled_programs:
+            sheet = enrolled_programs[sheet_name]
+            data = sheet.loc[sheet['ФИО'].str.lower() == name.lower()]['ДПП'].tolist()
+            if len(data) == 0:
+                continue
+            else:
+                found_data = data
+
     elif method_check == 'link_snils':
         snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
         if not snils_pattern.match(str(name)):
@@ -133,10 +142,22 @@ async def check_program(name: str, method_check: str):
             formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
             name = formatted_snils
 
-        data_to_check = programs.loc[(programs['СНИЛС'] == name) &
-                                    (programs['Зачисление'].isin(admission_options))]['Зачисление'].tolist()
+        for sheet_name in enrolled_programs:
+            sheet = enrolled_programs[sheet_name]
+            data = sheet.loc[sheet['СНИЛС'].str.lower() == name.lower()]['ДПП'].tolist()
+            if len(data) == 0:
+                continue
+            else:
+                found_data = data
+
     elif method_check == 'tutor_fio':
-        data_to_check = programs.loc[(programs['ФИО'].str.lower() == name.lower())]['Тьютор'].tolist()
+        for sheet_name in enrolled_programs:
+            sheet = enrolled_programs[sheet_name]
+            data = sheet.loc[sheet['ФИО'].str.lower() == name.lower()]['Тьютор'].tolist()
+            if len(data) == 0:
+                continue
+            else:
+                found_data = data
 
     elif method_check == 'tutor_snils':
         snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
@@ -145,9 +166,18 @@ async def check_program(name: str, method_check: str):
             formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
             name = formatted_snils
 
-        data_to_check = programs.loc[(programs['СНИЛС'] == name)]['Тьютор'].tolist()
+        for sheet_name in enrolled_programs:
+            sheet = enrolled_programs[sheet_name]
+            data = sheet.loc[sheet['СНИЛС'].str.lower() == name.lower()]['Тьютор'].tolist()
+            if len(data) == 0:
+                continue
+            else:
+                found_data = data
 
     try:
-        return data_to_check[0]
-    except IndexError:
+        if pd.isna(found_data[0]):
+            return 'Нет в зачислении'
+        else:
+            return found_data[0]
+    except (IndexError, UnboundLocalError):
         return 'Нет в зачислении'

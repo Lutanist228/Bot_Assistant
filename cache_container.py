@@ -15,8 +15,11 @@ caches.set_config({
 })
 
 async def excel_data():
-    path = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-2\\programs_edit_13.xlsx'
+    path_old_table = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-2\\programs_edit_13.xlsx'
+    path_enrolled_table = 'C:\\Users\\derev\\OneDrive\\Рабочий стол\\proga\\Bot_Assistant-2\\enrolled.xlsx'
 
-    programs = pd.read_excel(path, sheet_name='Общая таблица')
+    programs = pd.read_excel(path_old_table, sheet_name='Общая таблица')
+    enrolled_programs = pd.read_excel(path_enrolled_table, sheet_name=['Анализ', 'Разработка', 'VR', 'DevOps'], skiprows=1)
 
     await cache.set('excel_data', programs)
+    await cache.set('enrolled_data', enrolled_programs)
