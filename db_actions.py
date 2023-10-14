@@ -1,5 +1,7 @@
 import aiosqlite
 
+from additional_functions import process_connection_to_excel
+
 class Database:
     def __init__(self):
         self.connection = None
@@ -41,6 +43,39 @@ class Database:
                 )""")
             
             await conn.execute('''CREATE TABLE IF NOT EXISTS checked_ids (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name TEXT)''')
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name CHAR,
+                               suggestion TEXT,
+                               picture_id TEXT)''')
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS projects (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               team TEXT,
+                               project TEXT,
+                               project_tag TEXT)''')
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS analiz (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name TEXT)''')
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS razrabotka (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name TEXT)''')
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS vr (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               user_name TEXT)''')
+            
+            await conn.execute('''CREATE TABLE IF NOT EXISTS devops (
                                id INTEGER PRIMARY KEY AUTOINCREMENT,
                                user_id INTEGER,
                                user_name TEXT)''')
@@ -238,3 +273,37 @@ class Database:
             result = await cursor.fetchall()  
             return result
         
+    async def add_suggestion(self, user_id: int, user_name: str, suggestion: str, picture_id: str = None):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('INSERT INTO suggestions (user_id, user_name, suggestion, picture_id) VALUES (?, ?, ?, ?)',
+                                           (user_id, user_name, suggestion, picture_id)):
+            await self.connection.commit()
+        
+    async def get_project(self, project_tag: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT * FROM projects WHERE project_tag = ?', (project_tag,)) as cursor:
+            result = await cursor.fetchall()
+            return result
+        
+    async def add_to_programm(self, user_id: int, user_name: str, program: str):
+        if self.connection is None:
+            await self.create_connection()
+        programs = {'Анализ': 'analiz', 'Разработка': 'razrabotka', 'VR': 'vr', 'DevOps': 'devops'}
+        async with self.connection.execute(f'INSERT INTO {programs[program]} (user_id, user_name) VALUES (?, ?)', (user_id, user_name)):
+            await self.connection.commit()
+
+    async def start_project_information(self):
+        if self.connection is None:
+            await self.create_connection()
+        result = await process_connection_to_excel(status='start')
+        for i in range(len(result[1])):
+            async with self.connection.execute(f'''INSERT INTO projects (team, project, project_tag)
+                SELECT '{result[0][i]}', '{result[1][i]}', '{result[2][i]}'
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM projects 
+                    WHERE team = '{result[0][i]}' AND project = '{result[1][i]}' AND project_tag = '{result[2][i]}'
+                );
+                '''):
+                await self.connection.commit()

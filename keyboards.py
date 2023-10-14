@@ -15,28 +15,46 @@ glavnoe_menu_keyboard.add(glavnoe_menu_button)
 user_keyboard = InlineKeyboardMarkup(row_width=1)
 check_programm_keyboard = InlineKeyboardMarkup(row_width=2)
 find_link_keyboard = InlineKeyboardMarkup(row_width=2)
+tutor_keyboard = InlineKeyboardMarkup(row_width=2)
+registration_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
 check_programm_in_base = InlineKeyboardButton(text='Проверить зачисление', callback_data='check_programm')
 user_instruction = InlineKeyboardButton(text='Инструкция для пользователей', callback_data='user_instruction')
-fio_check = InlineKeyboardButton(text='Проверить по ФИО', callback_data='check_fio')
-snils_check = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='check_snils')
-registration_button = InlineKeyboardButton(text='Как регистрироваться', callback_data='registration')
+program_fio = InlineKeyboardButton(text='Проверить по ФИО', callback_data='program_fio')
+program_snils = InlineKeyboardButton(text='Проверить по СНИЛСУ', callback_data='program_snils')
+registration_button = InlineKeyboardButton(text='Как регистрироваться в лк Сеченова', callback_data='registration')
 lk_using_button = InlineKeyboardButton(text='Как пользоваться лк Сеченова', callback_data='lk_using')
 innopolis_button = InlineKeyboardButton(text='Как пользоваться лк Иннополиса', callback_data='innopolis_usage')
 get_link = InlineKeyboardButton(text='Получить ссылку на канал', callback_data='get_link')
 link_fio = InlineKeyboardButton(text='Найти по ФИО', callback_data='link_fio')
 link_snils = InlineKeyboardButton(text='Найти по СНИЛСу', callback_data='link_snils')
+suggestion_button = InlineKeyboardButton(text='Предложить улучшение/идею', callback_data='suggestion')
+tutor_fio = InlineKeyboardButton(text='Найти по ФИО', callback_data='tutor_fio')
+tutor_snils = InlineKeyboardButton(text='Найти по СНИЛСу', callback_data='tutor_snils')
+find_tutor = InlineKeyboardButton(text='Найти тьютора', callback_data='find_tutor')
+registration_to_project = InlineKeyboardButton(text='Записаться на проект', callback_data='registration_to_project')
+registration_fio = InlineKeyboardButton(text='По ФИО', callback_data='registration_fio')
+registration_snils = InlineKeyboardButton(text='По СНИЛСу', callback_data='registration_snils')
 
-check_programm_keyboard.add(fio_check, snils_check, 
+
+check_programm_keyboard.add(program_fio, program_snils, 
                             glavnoe_menu_button)
 user_keyboard.add(question_button, 
                   get_link, 
+                  find_tutor,
+                  registration_to_project,
                   lk_using_button,
                   user_instruction, 
-                  innopolis_button)
+                  innopolis_button,
+                  registration_button,
+                  suggestion_button)
 find_link_keyboard.add(link_fio, link_snils,
                        glavnoe_menu_button)
+tutor_keyboard.add(tutor_fio, tutor_snils,
+                   glavnoe_menu_button)
+registration_keyboard.add(registration_fio, registration_snils,
+                          glavnoe_menu_button)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")
@@ -79,6 +97,7 @@ do_not_generate_answer = InlineKeyboardButton(text='Не генерироват�
 upload_database = InlineKeyboardButton(text='Выгрузить базу', callback_data='upload_base')
 check_history = InlineKeyboardButton(text='Проверить историю', callback_data='check_history') # остановился здесь
 moder_instruction = InlineKeyboardButton(text='Инструкция для модераторов', callback_data='moder_instruction')
+unical_users = InlineKeyboardButton(text='Количество уникальных пользователей', callback_data='unical_users')
 
 common_moder_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
                                 moder_instruction, user_instruction)
@@ -87,7 +106,8 @@ make_announcement = InlineKeyboardButton(text='Сделать объявлени
 
 moder_owner_start_keyboard.add(number_of_unanswered_questions, answer_the_question, 
                                add_moder, delete_moder, 
-                               make_announcement, upload_database)
+                               make_announcement, upload_database,
+                               unical_users)
 generate_answer_keyboard.add(generate_answer, do_not_generate_answer, 
                              check_history, glavnoe_menu_button)
 

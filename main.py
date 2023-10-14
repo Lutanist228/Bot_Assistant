@@ -3,7 +3,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from config_file import OLD_API_TOKEN
 from db_actions import Database
-# from cache_container import excel_data
+from cache_container import excel_data
 
 bot = Bot(OLD_API_TOKEN)
 storage = MemoryStorage()
@@ -14,7 +14,8 @@ async def on_startup(dp):
     await db.create_connection()
     await db.create_table()
     await db.create_infromation_about_moder()
-    # await excel_data()
+    await db.start_project_information()
+    await excel_data()
     print('Бот запущен!')
 
 async def on_startup_wrapper(dp):

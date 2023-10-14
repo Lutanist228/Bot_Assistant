@@ -5,10 +5,10 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Global_Data_Storage, cache, db, active_keyboard_status
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
-from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard
+from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
 from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN, process_timeout, Global_Data_Storage
-from states import User_Panel, Moder_Panel
+from states import User_Panel, Moder_Panel, Registration
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
@@ -23,8 +23,8 @@ from aiogram.types import InputFile
 
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state == 'Moder_Panel:answer_panel':
+    current_state = await state.get_state() 
+    if current_state == 'Moder_Panel:answer_panel' or current_state == 'Moder_Panel:waiting_for_answer':
         data = await state.get_data()
         question_id = data['question_id']
         await db.update_question_id(question_id=question_id,
@@ -42,10 +42,13 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
             else:
                 await callback.message.edit_text('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
             return
-    bot_answer = await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
-    await active_keyboard_status(user_id=callback.from_user.id, 
+    try:
+        bot_answer = await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
+        await active_keyboard_status(user_id=callback.from_user.id, 
                                 message_id=bot_answer.message_id, 
                                 status='active')
+    except exceptions.MessageNotModified:
+        pass
 
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
@@ -70,7 +73,8 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
                                      status='active')
         await process_timeout(time_for_sleep=600,
                         state=state,
-                        chat_id=callback.from_user.id)
+                        chat_id=callback.from_user.id,
+                        chat_type=callback.message.chat.type)
     elif callback.data == 'number_unanswered':
         # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
         number = await db.get_number_of_unanswered_questions()
@@ -92,7 +96,7 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     elif callback.data =='upload_base':
         pass
     elif callback.data == 'check_programm':
-        await User_Panel.check_programm.set()
+        await User_Panel.check.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
                                          reply_markup=check_programm_keyboard)
     elif callback.data == 'make_announcement':
@@ -126,9 +130,30 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
                             message_id=bot_answer_4.message_id, 
                             status='active')
     elif callback.data == 'get_link':
-        await User_Panel.get_link.set()
+        await User_Panel.check.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы получить ссылку', 
                                          reply_markup=find_link_keyboard)
+    elif callback.data == 'unical_users':
+        unical_users = set()
+        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
+        for id in ids:
+            unical_users.add(id[0])
+        send_time = len(unical_users) / 20 * 5.1
+        await callback.message.answer(f'Количество уникальных пользователей: {len(unical_users)}\nПримерное время рассылки для них: {round(send_time, 2)} секунд')
+    elif callback.data == 'suggestion':
+        await User_Panel.suggestion.set()
+        bot_answer_5 = await callback.message.edit_text('Введите вашу идею или предложение по улучшению. По желанию можете прикрепить одно фото', reply_markup=glavnoe_menu_keyboard)
+        await active_keyboard_status(user_id=callback.from_user.id, 
+                            message_id=bot_answer_5.message_id, 
+                            status='active')
+    elif callback.data == 'find_tutor':
+        await User_Panel.check.set()
+        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы найти тьютора', 
+                                         reply_markup=tutor_keyboard)
+    elif callback.data == 'registration_to_project':
+        await User_Panel.check.set()
+        await callback.message.edit_text('Выберите способ для идентификации вас', 
+                                         reply_markup=registration_keyboard)
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -171,37 +196,72 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
             await callback.message.answer('Произошла ошибка. Напишите @egor_der или @lutanist228 со скрином проблемы', 
                                           reply_markup=user_keyboard)
 
-@dp.callback_query_handler(state=User_Panel.check_programm)
+@dp.callback_query_handler(state=User_Panel.check)
 async def program_checking(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data == 'check_fio':
-        bot_answer = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.check_fio.set()
-        await state.update_data(message_id=bot_answer.message_id)
-    elif callback.data == 'check_snils':
-        bot_answer = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.check_snils.set()
-        await state.update_data(message_id=bot_answer.message_id)
-
-@dp.callback_query_handler(state=User_Panel.get_link)
-async def program_checking(callback: types.CallbackQuery, state: FSMContext):
-    chat_links = {'Специалист по анализу медицинских данных': 'https://t.me/+zj3--wcW0sNiYmIy',
-                      'Разработчик VR/AR решений': 'https://t.me/+kQEO20362e5kYmNi',
-                      'DevOps в медицине': 'https://t.me/+AFV4pHILEw5hYmYy',
-                      'Разработчик цифровых медицинских сервисов': 'https://t.me/+1tQm27HrkY4xNjhi'}
+    chat_links = {'"Специалист по анализу медицинских данных" (ДПО)': 'https://t.me/+zj3--wcW0sNiYmIy',
+                      '"Разработчик VR/AR решений" (ДПО)': 'https://t.me/+kQEO20362e5kYmNi',
+                      '"DevOps в медицине" (ДПО)': 'https://t.me/+AFV4pHILEw5hYmYy',
+                      '"Разработчик цифровых медицинских сервисов" (ДПО)': 'https://t.me/+1tQm27HrkY4xNjhi'}
+    tutors = {'Кузнецова': '@anyu_ku17', 'Шелиха': '@shelraay', 'Митина': '@drucille00', 'Поликер': '@tabkatherine',
+              'Пушечкина': '@linnunivers', 'Самохин': '@lutanist228', 'Ципелева': '@corn_milk', 'Часова': '@irisscka',
+              'Гаврилина': '@logarithm_gvr', 'Шумилина': '@alina_417', 'Коробов': '@vlsue', 'Казакова': '@asya1710',
+              'Дрожжина': '@kotyanya69', 'Деревянко': '@egor_der', 'Гусейнова': '@g_u_n_e_l_99', 'Буркова': '@burleti',
+              'Веселов': '@bothat'}
     if callback.data == 'link_fio':
-        bot_answer = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+        bot_answer_1 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
                                          reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.link_fio.set()
-        await state.update_data(message_id=bot_answer.message_id,
-                                chats=chat_links)
+        await User_Panel.fio.set()
+        await state.update_data(message_id=bot_answer_1.message_id,
+                                chats=chat_links,
+                                method='link')
     elif callback.data == 'link_snils':
-        bot_answer = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+        bot_answer_2 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
                                          reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.link_snils.set()
-        await state.update_data(message_id=bot_answer.message_id,
-                                chats=chat_links)
+        await User_Panel.snils.set()
+        await state.update_data(message_id=bot_answer_2.message_id,
+                                chats=chat_links,
+                                method='link')
+    elif callback.data == 'program_fio':
+        bot_answer_3 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.fio.set()
+        await state.update_data(message_id=bot_answer_3.message_id,
+                                method='program')
+    elif callback.data == 'program_snils':
+        bot_answer_4 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.snils.set()
+        await state.update_data(message_id=bot_answer_4.message_id,
+                                method='program')
+    elif callback.data == 'tutor_fio':
+        bot_answer_5 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.fio.set()
+        await state.update_data(message_id=bot_answer_5.message_id,
+                                tutor=tutors,
+                                method='tutor')
+    elif callback.data == 'tutor_snils':
+        bot_answer_6 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.snils.set()
+        await state.update_data(message_id=bot_answer_6.message_id,
+                                tutor=tutors,
+                                method='tutor')
+    elif callback.data == 'registration_fio':
+        bot_answer_7 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.fio.set()
+        await state.update_data(message_id=bot_answer_7.message_id,
+                                tutor=tutors,
+                                method='registration')
+    elif callback.data == 'registration_snils':
+        bot_answer_8 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.snils.set()
+        await state.update_data(message_id=bot_answer_8.message_id,
+                                tutor=tutors,
+                                method='registration')
+
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
         
@@ -328,27 +388,39 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                       'Специалист по анализу медицинских данных': -1001938691427,
                       'DevOps': -1001910975819,
                       'VR/AR разработчик': -1001983546737}
-    
+    blocked_bot_counter = 0
     if callback.data == 'private_announcement':
         ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
             ids_to_send.add(id[0])
         await callback.message.edit_text('Объявление отправляется, ожидайте')
         for index, id_to_send in enumerate(ids_to_send):
-            if index % 20 == 0:
-                await asyncio.sleep(3)
+            if index % 10 == 0:
+                await asyncio.sleep(1)
             try:
-                bot_answer = await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}\n\nЕсли есть какие-то проблемы, то напишите /start', reply_markup=user_keyboard)
+                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                    parse_mode=types.ParseMode.HTML)
+                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation):
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
+                blocked_bot_counter += 1
                 continue
-        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+            except (exceptions.RetryAfter):
+                await asyncio.sleep(3)
+                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                    parse_mode=types.ParseMode.HTML)
+                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
+                await active_keyboard_status(user_id=id_to_send,
+                                             message_id=bot_answer_2.message_id,
+                                             status='active')
+                
+        await callback.message.edit_text(text=f'Объявление отправлено, вернитесь в главное меню.\nКоличество людей, заблокировавших бота: {blocked_bot_counter}', 
                                          reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'supergroup_announcement':
         for name, supergroup in supergroup_ids.items():
-            await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
+            await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
                                     reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'both_announcement':
@@ -357,26 +429,36 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             ids_to_send.add(id[0])
         await callback.message.edit_text('Объявление отправляется, ожидайте')
         for index, id_to_send in enumerate(ids_to_send):
-            if index % 20 == 0:
-                await asyncio.sleep(3)
+            if index % 10 == 0:
+                await asyncio.sleep(1)
             try:
-                bot_answer = await bot.send_message(chat_id=id_to_send, text=f'Объявление:\n\n{announcement}\n\nЕсли есть какие-то проблемы, то напишите /start', reply_markup=user_keyboard)
+                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                    parse_mode=types.ParseMode.HTML)
+                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation):
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
+                blocked_bot_counter += 1
                 continue
+            except (exceptions.RetryAfter):
+                await asyncio.sleep(3)
+                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                      reply_markup=user_keyboard, parse_mode=types.ParseMode.HTML)
+                await active_keyboard_status(user_id=id_to_send,
+                                             message_id=bot_answer_2.message_id,
+                                             status='active')
         
         for name, supergroup in supergroup_ids.items():
-            await bot.send_message(chat_id=supergroup, text=f'Объявление:\n\n{announcement}')
+            await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
             
-        await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
+        await callback.message.edit_text(text=f'Объявление отправлено, вернитесь в главное меню.\nКоличество людей, заблокировавших бота: {blocked_bot_counter}', 
                                 reply_markup=glavnoe_menu_keyboard)
 
 #------------------------------------------ERROR HANDLERS-----------------------------------------------
 
-@dp.errors_handler(exception=TelegramAPIError)
-async def process_errors(update: types.Update, exception: exceptions):
-    if isinstance(exception, exceptions.BotBlocked):
-        await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
-                                    reply_markup=glavnoe_menu_keyboard)
+# @dp.errors_handler(exception=TelegramAPIError)
+# async def process_errors(update: types.Update, exception: exceptions):
+#     if isinstance(exception, exceptions.BotBlocked):
+#         await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
+#                                     reply_markup=glavnoe_menu_keyboard)
