@@ -14,6 +14,7 @@ async def on_startup(dp):
     await db.create_connection()
     await db.create_table()
     await db.create_infromation_about_moder()
+    await db.start_project_information()
     await excel_data()
     print('Бот запущен!')
 

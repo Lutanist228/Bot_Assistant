@@ -6,6 +6,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
 import re
 import pandas as pd
+import gspread
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -173,11 +174,62 @@ async def check_program(name: str, method_check: str):
                 continue
             else:
                 found_data = data
+    
+    elif method_check == 'registration_fio':
+        found_data = await process_connection_to_excel(status='ФИО', data_to_find=name)
+        if found_data:
+            return found_data
+        
+    elif method_check == 'registration_snils':
+        snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
+        if not snils_pattern.match(str(name)):
+            cleaned_snils = re.sub(r'\D', '', str(name))
+            formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
+            name = formatted_snils
+
+        found_data = await process_connection_to_excel(status='СНИЛС', data_to_find=name)
+        if found_data:
+            return found_data
 
     try:
-        if pd.isna(found_data[0]):
+        if found_data is None:
+            return 'Нет в зачислении'
+        elif pd.isna(found_data[0]):
             return 'Нет в зачислении'
         else:
             return found_data[0]
     except (IndexError, UnboundLocalError):
         return 'Нет в зачислении'
+    
+async def process_connection_to_excel(status: str, row: int = None, worksheet_name: str = None, data: list = None, role:str = None, data_to_find = None):
+    from config_file import SERVICE_ACCOUNT_PATH, EXCEL_TABLE_PATH
+    gc = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
+    sheet = gc.open_by_url(EXCEL_TABLE_PATH)
+    worksheet_list = sheet.worksheets()
+    if status == 'ФИО':
+        for index in range(4):
+            worksheet = sheet.worksheet(worksheet_list[index].title)
+            cell = worksheet.find(data_to_find, case_sensitive=False)
+            if cell:
+                result = ['found', cell.row, worksheet_list[index].title]
+                return result
+    elif status == 'СНИЛС':
+        for index in range(4):
+            worksheet = sheet.worksheet(worksheet_list[index].title)
+            cell = worksheet.find(data_to_find, case_sensitive=False)
+            if cell:
+                result = ['found', cell.row, worksheet_list[index].title]
+                return result
+    elif status == 'edit':
+        worksheet_for_team = sheet.worksheet('Проекты')
+        cell = worksheet_for_team.find(data[0][2])
+        worksheet = sheet.worksheet(worksheet_name)
+        worksheet.update_cell(row=row, col=17, value=data[0][2])
+        worksheet.update_cell(row=row, col=18, value=data[0][1])
+        worksheet.update_cell(row=row, col=19, value=role)
+    elif status == 'start':
+        worksheet = sheet.worksheet('Проекты')
+        team = worksheet.col_values(1)
+        project = worksheet.col_values(2)
+        tags = worksheet.col_values(3)
+        return team, project, tags

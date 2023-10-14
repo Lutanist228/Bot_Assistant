@@ -12,12 +12,12 @@ from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_owner_start_keyboard, question_base_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import announcement_keyboard
-from additional_functions import fuzzy_handler, check_program
+from additional_functions import fuzzy_handler, check_program, process_connection_to_excel
 from keyboards import Boltun_Step_Back
 from cache_container import cache
 from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
-from states import User_Panel, Moder_Panel
+from states import User_Panel, Moder_Panel, Registration
 
 db = Database()
 
@@ -311,6 +311,28 @@ async def checking_fio(message: types.Message, state: FSMContext):
                             message_id=bot_answer_4.message_id, 
                             status='active')
         await state.finish()
+    elif method == 'registration':
+        await bot.send_chat_action(chat_id=message.from_user.id,
+                                   action='typing')
+        # Отправляем запрос по поиску нужной информации с нужным методом
+        result = await check_program(name, method_check='registration_fio')
+        if result == 'Нет в зачислении':
+            bot_answer_5 = await message.answer('Вас нет в данный момент в таблице', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_5.message_id, 
+                        status='active')
+            await state.finish()
+        elif result[0] == 'found':
+            bot_answer_6 = await message.answer('Введите хэштег проекта')
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_6.message_id, 
+                        status='active')
+            await Registration.get_tag.set()
+            await state.update_data(row=result[1], worksheet=result[2])
+            await db.add_to_programm(user_id=message.from_user.id, user_name=message.from_user.full_name, program=result[2])
+
+
 
 @dp.message_handler(state=User_Panel.snils)
 async def checking_fio(message: types.Message, state: FSMContext):
@@ -357,6 +379,26 @@ async def checking_fio(message: types.Message, state: FSMContext):
                             message_id=bot_answer_4.message_id, 
                             status='active')
         await state.finish()
+    elif method == 'registration':
+        await bot.send_chat_action(chat_id=message.from_user.id,
+                                   action='typing')
+        # Отправляем запрос по поиску нужной информации с нужным методом
+        result = await check_program(name, method_check='registration_snils')
+        if result == 'Нет в зачислении':
+            bot_answer_5 = await message.answer('Вас нет в данный момент в таблице', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_5.message_id, 
+                        status='active')
+            await state.finish()
+        elif result[0] == 'found':
+            bot_answer_6 = await message.answer('Введите хэштег проекта')
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_6.message_id, 
+                        status='active')
+            await Registration.get_tag.set()
+            await state.update_data(row=result[1], worksheet=result[2])
+            await db.add_to_programm(user_id=message.from_user.id, user_name=message.from_user.full_name, program=result[2])
 
 # Обработка предложений/улучшений
 @dp.message_handler(state=User_Panel.suggestion, content_types=[CT.TEXT, CT.PHOTO])
@@ -427,6 +469,35 @@ async def process_suggestion(message: types.Message, state: FSMContext):
 #                         status='active')
 #     await state.finish()
 
+@dp.message_handler(state=Registration.get_tag)
+async def process_getting_tag(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    row_num = data['row']
+    worksheet_name = data['worksheet']
+    result = await db.get_project(project_tag=message.text)
+    if result:
+        await Registration.role.set()
+        await state.update_data(row=row_num, worksheet=worksheet_name, project=result)
+        await message.answer('Опишите вашу роль в команде. Навыки, опыт и т.д.')
+    else:
+        bot_answer = await message.answer('Такого проекта нет. Проверьте написание и введите его снова, либо вернитесь в главное меню.', reply_markup=glavnoe_menu_keyboard)
+        await active_keyboard_status(user_id=message.from_user.id, 
+                         message_id=bot_answer.message_id, 
+                         status='active')
+
+@dp.message_handler(state=Registration.role)
+async def process_getting_role(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    row_num = data['row']
+    worksheet_name = data['worksheet']
+    result = data['project']
+    await process_connection_to_excel(status='edit', row=row_num, worksheet_name=worksheet_name, data=result, role=message.text)
+    bot_answer = await message.answer('Ваш проект успешно обновлен в таблице', reply_markup=user_keyboard)
+    await active_keyboard_status(user_id=message.from_user.id, 
+                         message_id=bot_answer.message_id, 
+                         status='active')
+    await state.finish()
+
 #------------------------------------------MODER HANDLERS-----------------------------------------------
 
 @dp.message_handler(state=Moder_Panel.waiting_for_answer)
@@ -447,11 +518,11 @@ async def process_answer(message: types.Message, state: FSMContext):
     await db.update_question_id(question_id, message.text, moder_id, moder_name)
     await message.reply('Ответ отправлен')
     if chat_type == 'supergroup':
-        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+        await bot.send_message(chat_id=chat_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, parse_mode=types.ParseMode.HTML)
         await state.finish()
     else:
         try:
-            await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id)
+            await bot.send_message(chat_id=user_id, text=f'Ответ: \n{message.text}', reply_to_message_id=message_id, parse_mode=types.ParseMode.HTML)
             await state.finish()
         except exceptions.BotBlocked:
             await message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
@@ -514,7 +585,7 @@ async def active_keyboard_status(user_id: int, message_id: int, status: str):
                     await bot.edit_message_reply_markup(chat_id=user_id, 
                                                         message_id=key,
                                                         reply_markup=markup)
-                except exceptions.MessageToEditNotFound:
+                except (exceptions.MessageToEditNotFound, exceptions.MessageNotModified):
                     pass
         # Добавление нового сообщения со статусом
         info[message_id] = status

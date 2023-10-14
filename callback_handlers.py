@@ -5,10 +5,10 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Global_Data_Storage, cache, db, active_keyboard_status
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
-from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard, tutor_keyboard
+from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
 from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN, process_timeout, Global_Data_Storage
-from states import User_Panel, Moder_Panel
+from states import User_Panel, Moder_Panel, Registration
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
@@ -150,6 +150,10 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await User_Panel.check.set()
         await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы найти тьютора', 
                                          reply_markup=tutor_keyboard)
+    elif callback.data == 'registration_to_project':
+        await User_Panel.check.set()
+        await callback.message.edit_text('Выберите способ для идентификации вас', 
+                                         reply_markup=registration_keyboard)
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -243,6 +247,21 @@ async def program_checking(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(message_id=bot_answer_6.message_id,
                                 tutor=tutors,
                                 method='tutor')
+    elif callback.data == 'registration_fio':
+        bot_answer_7 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.fio.set()
+        await state.update_data(message_id=bot_answer_7.message_id,
+                                tutor=tutors,
+                                method='registration')
+    elif callback.data == 'registration_snils':
+        bot_answer_8 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.snils.set()
+        await state.update_data(message_id=bot_answer_8.message_id,
+                                tutor=tutors,
+                                method='registration')
+
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
         
@@ -379,8 +398,9 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             if index % 10 == 0:
                 await asyncio.sleep(1)
             try:
-                bot_answer = await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
-                                                    reply_markup=user_keyboard, parse_mode=types.ParseMode.HTML)
+                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                    parse_mode=types.ParseMode.HTML)
+                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
@@ -389,8 +409,9 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 continue
             except (exceptions.RetryAfter):
                 await asyncio.sleep(3)
-                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
-                                                      reply_markup=user_keyboard, parse_mode=types.ParseMode.HTML)
+                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                    parse_mode=types.ParseMode.HTML)
+                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer_2.message_id,
                                              status='active')
@@ -411,8 +432,9 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             if index % 10 == 0:
                 await asyncio.sleep(1)
             try:
-                bot_answer = await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
-                                                    reply_markup=user_keyboard, parse_mode=types.ParseMode.HTML)
+                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
+                                                    parse_mode=types.ParseMode.HTML)
+                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')

@@ -16,6 +16,7 @@ user_keyboard = InlineKeyboardMarkup(row_width=1)
 check_programm_keyboard = InlineKeyboardMarkup(row_width=2)
 find_link_keyboard = InlineKeyboardMarkup(row_width=2)
 tutor_keyboard = InlineKeyboardMarkup(row_width=2)
+registration_keyboard = InlineKeyboardMarkup(row_width=2)
 
 question_button = InlineKeyboardButton(text='Задать вопрос', callback_data='make_question')
 check_programm_in_base = InlineKeyboardButton(text='Проверить зачисление', callback_data='check_programm')
@@ -32,6 +33,9 @@ suggestion_button = InlineKeyboardButton(text='Предложить улучше
 tutor_fio = InlineKeyboardButton(text='Найти по ФИО', callback_data='tutor_fio')
 tutor_snils = InlineKeyboardButton(text='Найти по СНИЛСу', callback_data='tutor_snils')
 find_tutor = InlineKeyboardButton(text='Найти тьютора', callback_data='find_tutor')
+registration_to_project = InlineKeyboardButton(text='Записаться на проект', callback_data='registration_to_project')
+registration_fio = InlineKeyboardButton(text='По ФИО', callback_data='registration_fio')
+registration_snils = InlineKeyboardButton(text='По СНИЛСу', callback_data='registration_snils')
 
 
 check_programm_keyboard.add(program_fio, program_snils, 
@@ -39,6 +43,7 @@ check_programm_keyboard.add(program_fio, program_snils,
 user_keyboard.add(question_button, 
                   get_link, 
                   find_tutor,
+                  registration_to_project,
                   lk_using_button,
                   user_instruction, 
                   innopolis_button,
@@ -48,6 +53,8 @@ find_link_keyboard.add(link_fio, link_snils,
                        glavnoe_menu_button)
 tutor_keyboard.add(tutor_fio, tutor_snils,
                    glavnoe_menu_button)
+registration_keyboard.add(registration_fio, registration_snils,
+                          glavnoe_menu_button)
 
 class Boltun_Step_Back:
     close_status = KeyboardButton("Завершить процесс")

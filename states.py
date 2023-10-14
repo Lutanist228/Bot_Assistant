@@ -9,7 +9,7 @@ class User_Panel(StatesGroup):
     boltun_back_to_menu = State()
     fio = State()
     snils = State()
-    suggestion = State() 
+    suggestion = State()
 
 class Moder_Panel(StatesGroup):
     add_moder = State()
@@ -20,3 +20,6 @@ class Moder_Panel(StatesGroup):
     make_announcement = State()
     answer_panel = State()
 
+class Registration(StatesGroup):
+    get_tag = State()
+    role = State()
