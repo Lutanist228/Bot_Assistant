@@ -202,24 +202,27 @@ async def check_program(name: str, method_check: str):
         return 'Нет в зачислении'
     
 async def process_connection_to_excel(status: str, row: int = None, worksheet_name: str = None, data: list = None, role:str = None, data_to_find = None):
+
+    def online_table_process():
+        for index in range(4):
+            worksheet = sheet.worksheet(worksheet_list[index].title)
+            cell = worksheet.find(data_to_find, case_sensitive=False)
+            if cell:
+                result = ['found', cell.row, worksheet_list[index].title]
+                return result
+
     from config_file import SERVICE_ACCOUNT_PATH, EXCEL_TABLE_PATH
-    gc = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
+
+    try:
+        gc = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
+    except FileNotFoundError:
+        gc = gspread.service_account(filename=r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\other_file\google_key.json")
     sheet = gc.open_by_url(EXCEL_TABLE_PATH)
     worksheet_list = sheet.worksheets()
     if status == 'ФИО':
-        for index in range(4):
-            worksheet = sheet.worksheet(worksheet_list[index].title)
-            cell = worksheet.find(data_to_find, case_sensitive=False)
-            if cell:
-                result = ['found', cell.row, worksheet_list[index].title]
-                return result
+        online_table_process()
     elif status == 'СНИЛС':
-        for index in range(4):
-            worksheet = sheet.worksheet(worksheet_list[index].title)
-            cell = worksheet.find(data_to_find, case_sensitive=False)
-            if cell:
-                result = ['found', cell.row, worksheet_list[index].title]
-                return result
+        online_table_process()
     elif status == 'edit':
         worksheet_for_team = sheet.worksheet('Проекты')
         cell = worksheet_for_team.find(data[0][2])

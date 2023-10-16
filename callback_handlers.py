@@ -198,6 +198,9 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
 
 @dp.callback_query_handler(state=User_Panel.check)
 async def program_checking(callback: types.CallbackQuery, state: FSMContext):
+
+    # Этот блок нужно сократить, избавиться от грузных if-еlse условий
+
     chat_links = {'"Специалист по анализу медицинских данных" (ДПО)': 'https://t.me/+zj3--wcW0sNiYmIy',
                       '"Разработчик VR/AR решений" (ДПО)': 'https://t.me/+kQEO20362e5kYmNi',
                       '"DevOps в медицине" (ДПО)': 'https://t.me/+AFV4pHILEw5hYmYy',
@@ -207,6 +210,7 @@ async def program_checking(callback: types.CallbackQuery, state: FSMContext):
               'Гаврилина': '@logarithm_gvr', 'Шумилина': '@alina_417', 'Коробов': '@vlsue', 'Казакова': '@asya1710',
               'Дрожжина': '@kotyanya69', 'Деревянко': '@egor_der', 'Гусейнова': '@g_u_n_e_l_99', 'Буркова': '@burleti',
               'Веселов': '@bothat'}
+    
     if callback.data == 'link_fio':
         bot_answer_1 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
                                          reply_markup=glavnoe_menu_keyboard)
@@ -261,7 +265,6 @@ async def program_checking(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(message_id=bot_answer_8.message_id,
                                 tutor=tutors,
                                 method='registration')
-
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
         

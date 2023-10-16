@@ -18,6 +18,7 @@ from cache_container import cache
 from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
 from states import User_Panel, Moder_Panel, Registration
+from aiogram.types import ReplyKeyboardRemove 
 
 db = Database()
 
@@ -36,6 +37,7 @@ async def process_start_message(message: types.Message, state: FSMContext):
     :param message: 'Start' command
     """
     await state.finish()
+    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
     if message.chat.type == 'private':
     # Достаем айдишники модеров, чтобы проверить пользователя кем он является
         moder_ids = await db.get_moder()
@@ -164,6 +166,7 @@ async def redirect_question(message: types.Message, state: FSMContext):
                                         question=Global_Data_Storage.question_temp_inf,
                                         chat_type=message.chat.type)
     await state.finish()
+    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
     bot_answer = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
     # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
     await active_keyboard_status(user_id=message.from_user.id, 
@@ -188,7 +191,8 @@ async def on_reply_processing(message: types.Message):
 
 @dp.message_handler(text = "Завершить процесс", state=User_Panel.boltun_reply)
 async def quitting(message: types.Message, state: FSMContext):
-    bot_answer = await message.reply("Действие отменено.\nВозврат в меню бота...", reply_markup=user_keyboard)
+    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
+    bot_answer = await message.reply("Действие отменено", reply_markup=user_keyboard)
     await state.finish()
     # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
     await active_keyboard_status(user_id=message.from_user.id, 
@@ -205,6 +209,7 @@ async def quitting(message: types.Message):
                                         question=question[0], 
                                         chat_type=message.chat.type, 
                                         message_id=message.message_id)
+    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
     bot_answer = await message.reply('Вопрос был передан', reply_markup=glavnoe_menu_keyboard)
     # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
     await active_keyboard_status(user_id=message.from_user.id, 
@@ -241,7 +246,7 @@ async def process_question_command(message: types.Message):
         await process_timeout(time_for_sleep=30, chat_id=message.chat.id, chat_type=message.chat.type,
                               message_id=bot_delete.message_id)
 
-@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
+@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ", "/start"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
 async def wrong_format(message: types.Message):
     if message.chat.type == 'private':
         await message.delete()
@@ -337,10 +342,8 @@ async def checking_fio(message: types.Message, state: FSMContext):
             await state.update_data(row=result[1], worksheet=result[2])
             await db.add_to_programm(user_id=message.from_user.id, user_name=message.from_user.full_name, program=result[2])
 
-
-
 @dp.message_handler(state=User_Panel.snils)
-async def checking_fio(message: types.Message, state: FSMContext):
+async def checking_snils(message: types.Message, state: FSMContext):
     name = message.text.strip()
     data = await state.get_data()
     method = data['method']
@@ -621,7 +624,6 @@ async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, mes
         await asyncio.sleep(time_for_sleep)
         await bot.delete_message(chat_id=chat_id,
                                  message_id=message_id)
-
 
 # @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
 async def process_videos(message: types.Message):
