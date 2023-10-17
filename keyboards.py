@@ -37,7 +37,6 @@ registration_to_project = InlineKeyboardButton(text='Записаться на �
 registration_fio = InlineKeyboardButton(text='По ФИО', callback_data='registration_fio')
 registration_snils = InlineKeyboardButton(text='По СНИЛСу', callback_data='registration_snils')
 
-
 check_programm_keyboard.add(program_fio, program_snils, 
                             glavnoe_menu_button)
 user_keyboard.add(question_button, 

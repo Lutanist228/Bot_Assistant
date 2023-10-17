@@ -203,16 +203,21 @@ async def check_program(name: str, method_check: str):
     
 async def process_connection_to_excel(status: str, row: int = None, worksheet_name: str = None, data: list = None, role:str = None, data_to_find = None):
     from config_file import SERVICE_ACCOUNT_PATH, EXCEL_TABLE_PATH
+    # Берем данные для входа по api
     gc = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
+    # Подключаемся к таблице
     sheet = gc.open_by_url(EXCEL_TABLE_PATH)
+    # Берем все названия листов таблицы
     worksheet_list = sheet.worksheets()
     if status == 'ФИО':
+        # Проходимся по каждому листу, чтобы найти в нужном человека
         for index in range(4):
             worksheet = sheet.worksheet(worksheet_list[index].title)
             cell = worksheet.find(data_to_find, case_sensitive=False)
             if cell:
                 result = ['found', cell.row, worksheet_list[index].title]
                 return result
+    # Тоже что и с ФИО
     elif status == 'СНИЛС':
         for index in range(4):
             worksheet = sheet.worksheet(worksheet_list[index].title)
@@ -221,13 +226,14 @@ async def process_connection_to_excel(status: str, row: int = None, worksheet_na
                 result = ['found', cell.row, worksheet_list[index].title]
                 return result
     elif status == 'edit':
-        worksheet_for_team = sheet.worksheet('Проекты')
-        cell = worksheet_for_team.find(data[0][2])
+        # worksheet_for_team = sheet.worksheet('Проекты')
+        # cell = worksheet_for_team.find(data[0][2])
         worksheet = sheet.worksheet(worksheet_name)
         worksheet.update_cell(row=row, col=17, value=data[0][2])
         worksheet.update_cell(row=row, col=18, value=data[0][1])
         worksheet.update_cell(row=row, col=19, value=role)
     elif status == 'start':
+        # Получаем три столбца для сохранения в бд при запуске
         worksheet = sheet.worksheet('Проекты')
         team = worksheet.col_values(1)
         project = worksheet.col_values(2)

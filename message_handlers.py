@@ -333,7 +333,6 @@ async def checking_fio(message: types.Message, state: FSMContext):
             await db.add_to_programm(user_id=message.from_user.id, user_name=message.from_user.full_name, program=result[2])
 
 
-
 @dp.message_handler(state=User_Panel.snils)
 async def checking_fio(message: types.Message, state: FSMContext):
     name = message.text.strip()
@@ -549,10 +548,15 @@ async def process_deleting_moder(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer('Модер удален', reply_markup=moder_owner_start_keyboard)
 
-@dp.message_handler(state=Moder_Panel.make_announcement)
+@dp.message_handler(state=Moder_Panel.make_announcement, content_types=[CT.TEXT, CT.PHOTO])
 async def process_announcement(message: types.Message, state: FSMContext):
     announcement = message.text
-    await state.update_data(announcement_text=announcement)
+    if message.photo:
+        photo_id = message.photo[-1].file_id
+        caption = message.caption
+        await state.update_data(announcement_text=caption, announcement_picture=photo_id)
+    else:
+        await state.update_data(announcement_text=announcement)
     await message.answer('Выберите тип публикации', reply_markup=announcement_keyboard)
 
 #------------------------------------------ERROR HANDLERS-----------------------------------------------

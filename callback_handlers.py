@@ -53,7 +53,7 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'user_instruction':
-        await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
+        await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAEBZqZlLjlTXKGlEgT-IbKtrv5CngnhlgACGTgAArP5cEkttyABWS6lmzAE')
         bot_answer_1 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
         await state.finish()
         await active_keyboard_status(user_id=callback.from_user.id, 
@@ -382,6 +382,11 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
 async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     announcement = data['announcement_text']
+    try:
+        if data['announcement_picture']:
+            announcement_picture = data['announcement_picture']
+    except KeyError:
+        pass
     ids_to_send = set()
     supergroup_ids = {'Общая информация по ДПП': -1001966706612,
                       'Разработчик электронных медицинских сервисов': -1001944717245,
@@ -400,6 +405,11 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             try:
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
+                try:
+                    if announcement_picture:
+                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+                except UnboundLocalError:
+                    pass
                 bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
@@ -411,6 +421,11 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await asyncio.sleep(3)
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
+                try:
+                    if announcement_picture:
+                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+                except UnboundLocalError:
+                    pass
                 bot_answer_2 = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer_2.message_id,
@@ -421,6 +436,11 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
     elif callback.data == 'supergroup_announcement':
         for name, supergroup in supergroup_ids.items():
             await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
+            try:
+                if announcement_picture:
+                    await bot.send_photo(chat_id=supergroup, photo=announcement_picture)
+            except UnboundLocalError:
+                pass
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
                                     reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'both_announcement':
@@ -434,6 +454,11 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             try:
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
+                try:
+                    if announcement_picture:
+                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+                except UnboundLocalError:
+                    pass
                 bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
@@ -445,13 +470,22 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await asyncio.sleep(3)
                 bot_answer_2 = await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                       reply_markup=user_keyboard, parse_mode=types.ParseMode.HTML)
+                try:
+                    if announcement_picture:
+                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+                except UnboundLocalError:
+                    pass
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer_2.message_id,
                                              status='active')
         
         for name, supergroup in supergroup_ids.items():
             await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
-            
+            try:
+                if announcement_picture:
+                    await bot.send_photo(chat_id=supergroup, photo=announcement_picture)
+            except UnboundLocalError:
+                pass
         await callback.message.edit_text(text=f'Объявление отправлено, вернитесь в главное меню.\nКоличество людей, заблокировавших бота: {blocked_bot_counter}', 
                                 reply_markup=glavnoe_menu_keyboard)
 
