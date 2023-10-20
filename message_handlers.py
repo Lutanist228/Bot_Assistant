@@ -280,8 +280,8 @@ async def checking_fio(message: types.Message, state: FSMContext):
                         status='active')
         else:
             # Достаем из словаря нужное значение по ключу
-            link = data['chats'][result]
-            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n{result}\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            link = data['chats'][result[0]]
+            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n{result[0]}\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
             # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
@@ -301,8 +301,8 @@ async def checking_fio(message: types.Message, state: FSMContext):
                         status='active')
         else:
             # Достаем из словаря нужное значение по ключу
-            tutor = data['tutor'][result.strip()]
-            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {tutor}', reply_markup=user_keyboard)
+            tutor = data['tutor'][result[0].strip()]
+            bot_answer_4 = await message.answer(f'Ваш тьютор: {result[0]}\nСсылка на него: {tutor}', reply_markup=user_keyboard)
             # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
@@ -331,6 +331,28 @@ async def checking_fio(message: types.Message, state: FSMContext):
             await Registration.get_tag.set()
             await state.update_data(row=result[1], worksheet=result[2])
             await db.add_to_programm(user_id=message.from_user.id, user_name=message.from_user.full_name, program=result[2])
+    elif method == 'enroll':
+        await bot.send_chat_action(chat_id=message.from_user.id,
+                                   action='typing')
+        # Отправляем запрос по поиску нужной информации с нужным методом
+        result = await check_program(name, method_check='enroll_fio')
+        if result == 'Нет в зачислении':
+            bot_answer_7 = await message.answer('Вас нет в данный момент в таблице', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_7.message_id, 
+                        status='active')
+            await state.finish()
+        else:
+            bot_answer_8 = await message.answer('Вы есть в списке зачисления', reply_markup=user_keyboard)
+            # Добавляем в бд проверенного чела для дальнейшей рассылки
+            await db.add_to_checked_fio(user_id=message.from_user.id, username=message.from_user.username, user_fullname=message.from_user.full_name,
+                                        fio=result[0], program=result[1]) 
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer_8.message_id, 
+                            status='active')
+        await state.finish()
 
 
 @dp.message_handler(state=User_Panel.snils)
@@ -348,8 +370,8 @@ async def checking_fio(message: types.Message, state: FSMContext):
                         status='active')
         else:
             # Достаем из словаря нужное значение по ключу
-            link = data['chats'][result]
-            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n{result}\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
+            link = data['chats'][result[0]]
+            bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n{result[0]}\nСсылка на канал:\n{link}', reply_markup=user_keyboard)
             # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
@@ -368,8 +390,8 @@ async def checking_fio(message: types.Message, state: FSMContext):
                         status='active')
         else:
             # Достаем из словаря нужное значение по ключу
-            tutor = data['tutor'][result.strip()]
-            bot_answer_4 = await message.answer(f'Ваш тьютор: {result}\nСсылка на него: {tutor}', reply_markup=user_keyboard)
+            tutor = data['tutor'][result[0].strip()]
+            bot_answer_4 = await message.answer(f'Ваш тьютор: {result[0]}\nСсылка на него: {tutor}', reply_markup=user_keyboard)
             # Добавляем в бд проверенного чела для дальнейшей рассылки
             await db.add_checked_id(user_id=message.from_user.id,
                                     user_name=message.from_user.full_name)
@@ -398,6 +420,28 @@ async def checking_fio(message: types.Message, state: FSMContext):
             await Registration.get_tag.set()
             await state.update_data(row=result[1], worksheet=result[2])
             await db.add_to_programm(user_id=message.from_user.id, user_name=message.from_user.full_name, program=result[2])
+    elif method == 'enroll':
+        await bot.send_chat_action(chat_id=message.from_user.id,
+                                   action='typing')
+        # Отправляем запрос по поиску нужной информации с нужным методом
+        result = await check_program(name, method_check='enroll_snils')
+        if result == 'Нет в зачислении':
+            bot_answer_7 = await message.answer('Вас нет в данный момент в таблице', reply_markup=user_keyboard)
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
+            await active_keyboard_status(user_id=message.from_user.id, 
+                        message_id=bot_answer_7.message_id, 
+                        status='active')
+            await state.finish()
+        else:
+            bot_answer_8 = await message.answer('Вы есть в списке зачисления', reply_markup=user_keyboard)
+            # Добавляем в бд проверенного чела для дальнейшей рассылки
+            await db.add_to_checked_fio(user_id=message.from_user.id, username=message.from_user.username, user_fullname=message.from_user.full_name,
+                                        fio=result[0], program=result[1]) 
+            # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer_8.message_id, 
+                            status='active')
+        await state.finish()
 
 # Обработка предложений/улучшений
 @dp.message_handler(state=User_Panel.suggestion, content_types=[CT.TEXT, CT.PHOTO])

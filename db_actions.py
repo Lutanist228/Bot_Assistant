@@ -79,6 +79,14 @@ class Database:
                                user_id INTEGER,
                                user_name TEXT)''')
             
+            await conn.execute('''CREATE TABLE IF NOT EXISTS fio_and_tg (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               username TEXT,
+                               user_fullname TEXT,
+                               fio TEXT,
+                               program TEXT)''')
+            
     async def create_infromation_about_moder(self):
         async with aiosqlite.connect('database.db') as conn:
             await conn.execute('''CREATE TABLE IF NOT EXISTS moder_information
@@ -306,3 +314,10 @@ class Database:
                 );
                 '''):
                 await self.connection.commit()
+
+    async def add_to_checked_fio(self, user_id: int, username: str, user_fullname: str, fio: str, program: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('INSERT INTO fio_and_tg (user_id, username, user_fullname, fio, program) VALUES (?, ?, ?, ?, ?)',
+                                           (user_id, username, user_fullname, fio, program)):
+            await self.connection.commit()

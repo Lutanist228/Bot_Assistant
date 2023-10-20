@@ -5,7 +5,7 @@ from additional_functions import fuzzy_handler
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Global_Data_Storage, cache, db, active_keyboard_status
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
-from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
+from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard, enroll_keyboard
 from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN, process_timeout, Global_Data_Storage
 from states import User_Panel, Moder_Panel, Registration
@@ -154,6 +154,10 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await User_Panel.check.set()
         await callback.message.edit_text('Выберите способ для идентификации вас', 
                                          reply_markup=registration_keyboard)
+    elif callback.data == 'enroll_check':
+        await User_Panel.check.set()
+        await callback.message.edit_text('Выберите способ проверки', 
+                                         reply_markup=enroll_keyboard)
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -261,6 +265,18 @@ async def program_checking(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(message_id=bot_answer_8.message_id,
                                 tutor=tutors,
                                 method='registration')
+    elif callback.data == 'enroll_fio':
+        bot_answer_9 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.fio.set()
+        await state.update_data(message_id=bot_answer_9.message_id,
+                                method='enroll')
+    elif callback.data == 'enroll_snils':
+        bot_answer_10 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                         reply_markup=glavnoe_menu_keyboard)
+        await User_Panel.snils.set()
+        await state.update_data(message_id=bot_answer_10.message_id,
+                                method='enroll')
 
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
