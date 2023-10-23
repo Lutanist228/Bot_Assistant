@@ -1,12 +1,13 @@
-from aiogram import types
+from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.utils.exceptions import TelegramAPIError
 from aiogram.utils import exceptions
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.types.message import ContentType as CT
-
 import json
 import asyncio
+from typing import Union
+from functools import wraps
 
 from db_actions import Database
 from main import dp, bot
@@ -20,6 +21,129 @@ from keyboards import Boltun_Keys
 from states import User_Panel, Moder_Panel, Registration
 from aiogram.types import ReplyKeyboardRemove 
 
+#------------------------------------------ADDITIONAL FUNCTIONS-----------------------------------------------
+
+async def active_keyboard_status(user_id: int, message_id: int, status: str):
+    # Получаем айди пользователя, айди сообщения, в котором хранится активная клавиатура. Создание пустой Inline клавиатуры
+    markup = InlineKeyboardMarkup()
+    # Создание кеш-хранилища под айди пользователя, где будут хранится все сообщения с клавами. Удаления этого хранилища еще
+    info = await cache.get(user_id)
+    await cache.delete(user_id)
+    # Прохождение по словарю с сообщениями и состояниями. Перевод всех сообщений до нового в неактивное состояние и редактировние клавы
+    if info:
+        for key, value in info.items():
+            if value == 'not active':
+                continue
+            elif value == 'active' and status == 'not active':
+                info[key] = status
+            elif value == 'active' and message_id != key:
+                value = 'not active'
+                info[key] = value
+                try:
+                    await bot.edit_message_reply_markup(chat_id=user_id, 
+                                                        message_id=key,
+                                                        reply_markup=markup)
+                except (exceptions.MessageToEditNotFound, exceptions.MessageNotModified):
+                    pass
+        # Добавление нового сообщения со статусом
+        info[message_id] = status
+        await cache.set(user_id, info)
+    else:
+        info = {}
+        info[message_id] = status
+        await cache.set(user_id, info)
+        # Очистка кеш хранилища через час, чтобы не нагружать сервак. По идее должно все работать
+        # await asyncio.sleep(3600)
+        # await cache.delete(user_id)
+
+async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, message_id: int = None, state: FSMContext = None):
+    if chat_type == 'private':
+        # Таймаут на задачу вопроса и возврат пользователя если он так и не задал вопрос (проверяет по измению состояния)
+        await asyncio.sleep(time_for_sleep)
+        if await state.get_state() == 'User_Panel:boltun_question':
+            await state.finish()
+            bot_answer = await bot.send_message(chat_id=chat_id, 
+                                text='Вы превисили время на вопрос. Возвращаю вас обратно в меню',
+                                reply_markup=user_keyboard)
+            await active_keyboard_status(user_id=chat_id, 
+                message_id=bot_answer.message_id, 
+                status='active')
+        else:
+            return
+    elif chat_type == 'supergroup':
+        await asyncio.sleep(time_for_sleep)
+        await bot.delete_message(chat_id=chat_id,
+                                 message_id=message_id)
+
+# @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
+async def process_videos(message: types.Message):
+    print(message.video)
+    print(message.document)
+
+def quarry_definition_decorator(func):
+    """
+        Как работает этот декоратор:
+        1. С помощью оберточной функции и именованных аргументов, заключенных в **kwargs,
+        декоратор вычленяет значение переменных, что представляют собой изменяемые объекты 
+        в з-ти от типа запроса: переменная вычисления message_id, переменная вычисления user_id,
+        и другие
+        2. Внутри декоратора выполняется проверка на тип запроса и только затем 
+        вышеуказанные переменные меняются на те, что требует тот или иной тип запроса
+        3. После перезаписи возвращается принимаемая функция, но уже с перезаписанными 
+        переменными
+    """
+    @wraps(func) 
+    async def async_wrapper(quarry_type, state, **kwargs):
+                # quarry_type = filter(lambda x: isinstance(x, types.Message), args) ; quarry_type = next(quarry_type)
+             
+                if isinstance(quarry_type, types.Message) == True:
+                    # kwargs["quarry_type"] = types.Message
+                    # kwargs["state"] = state
+                    kwargs["chat_id"] = quarry_type.chat.id
+                    kwargs["user_id"] = quarry_type.from_user.id
+                    kwargs["chat_type"] = quarry_type.chat.type
+                elif isinstance(quarry_type, types.CallbackQuery) == True:
+                    kwargs["chat_id"] = quarry_type.message.chat.id
+                    # kwargs["quarry_type"] = types.CallbackQuery
+                    # kwargs["state"] = state
+                    kwargs["user_id"] = quarry_type.from_user.id
+                    kwargs["chat_type"] = quarry_type.message.chat.type
+                return await func(**kwargs) 
+    return async_wrapper    
+
+def user_registration_decorator(func):
+    """
+    Как работает этот декоратор:
+    1. Обертка принимает именованные аргументы, такие, что ответственны за идентификацию пользователей 
+    и засчет ветвления делегирует алгоритм в нужное русло.
+    2. Принимаемая функция при этом НЕ меняется, а лишь выступает в качестве источника информации,
+    а этот декоратор как бы - совокупность замков, ключи к которому - аргументы принимаемой функции.
+    """
+    async def async_wrapper(quarry_type, state, *args):
+        @quarry_definition_decorator
+        async def registration(chat_id, user_id, chat_type):
+            moder_ids = await db.get_moder()
+            for id in moder_ids:
+                if user_id == id[0]:
+                    if id[1] == 'Owner':
+                        await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+                        return await func(quarry_type, state)
+                    else:
+                        await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=common_moder_start_keyboard)
+                        return await func(quarry_type, state)
+            try:
+                bot_answer = bot.send_message(chat_id=chat_id, text='Выберите дальнейшее действие', reply_markup=user_keyboard)
+                await active_keyboard_status(user_id=user_id, 
+                                    message_id=bot_answer.message_id, 
+                                    status='active')
+                return await func(quarry_type, state)
+            except exceptions.MessageNotModified:
+                pass
+        return await registration(quarry_type, state)
+    return async_wrapper
+
+#------------------------------------------INIT BLOCK---------------------------------------------
+
 db = Database()
 
 class Global_Data_Storage():
@@ -29,31 +153,13 @@ class Global_Data_Storage():
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
 @dp.message_handler(commands=['start'], state='*')
+@user_registration_decorator
 async def process_start_message(message: types.Message, state: FSMContext):
-    """ 
-    Process 'Start' command and check if user is moder or not
-    After it sends keyboards
-
-    :param message: 'Start' command
-    """
     await state.finish()
-    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
+    await bot.send_message(chat_id=message.chat.id, text="Вы успешно вернулись в меню", reply_markup=ReplyKeyboardRemove())
+
     if message.chat.type == 'private':
-    # Достаем айдишники модеров, чтобы проверить пользователя кем он является
-        moder_ids = await db.get_moder()
-        for id in moder_ids:
-            if message.from_user.id == id[0]:
-                # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
-                if id[1] == 'Owner':
-                    await message.answer('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
-                else:
-                    await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
-                return
-        bot_answer = await message.answer('''Выберите дальнейшее действие.\nПеред началом работы с ботом настоятельно рекомендуем ознакомиться с "Пользовательской инструкцией" к боту''', reply_markup=user_keyboard)
-        # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
-        await active_keyboard_status(user_id=message.from_user.id, 
-                                     message_id=bot_answer.message_id, 
-                                     status='active')
+        pass
     else:
         # Пересылка пользователя в личную переписку с ботом
         bot_supergroup = await message.answer('Данная команда доступна только в личных сообщениях с ботом.\nИспользуйте "<b>question</b> ваш вопрос"', parse_mode=types.ParseMode.HTML)
@@ -87,7 +193,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=data['question'])
     list_of_questions = list(set(list_of_questions))
     if reply_text != "Not Found":
-        if 50 <= similarity_rate <= 90:
+        if 50 <= similarity_rate <= 85:
             await message.answer(text="Отлично, а теперь дождитесь ответа бота!", reply_markup=Boltun_Step_Back.kb_failed_to_find)
             serialized_question_menu_data = json.dumps(list_of_questions)
             await cache.set(message.message_id, serialized_question_menu_data)
@@ -216,11 +322,6 @@ async def quitting(message: types.Message):
         message_id=bot_answer.message_id, 
         status='active')
 
-@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ", "/start"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
-async def wrong_format(message: types.Message):
-    await message.delete()
-    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте <b>инструкцией</b> к боту", parse_mode="HTML")
-
 @dp.message_handler(text_startswith='question')
 async def process_question_command(message: types.Message):
     # Обработка в чате вопроса через команду "question вопрос". Проверка, чтобы был не пустой вопрос
@@ -251,6 +352,11 @@ async def wrong_format(message: types.Message):
     if message.chat.type == 'private':
         await message.delete()
         await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
+
+@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ", "/start"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
+async def wrong_format(message: types.Message):
+    await message.delete()
+    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте <b>инструкцией</b> к боту", parse_mode="HTML")
 
 @dp.message_handler(state=User_Panel.making_question)
 async def process_question_button(message: types.Message, state: FSMContext):
@@ -571,61 +677,4 @@ async def process_announcement(message: types.Message, state: FSMContext):
 #         await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
 #                                     reply_markup=glavnoe_menu_keyboard)
 
-#------------------------------------------ADDITIONAL FUNCS----------------------------------------------
 
-async def active_keyboard_status(user_id: int, message_id: int, status: str):
-    # Получаем айди пользователя, айди сообщения, в котором хранится активная клавиатура. Создание пустой Inline клавиатуры
-    markup = InlineKeyboardMarkup()
-    # Создание кеш-хранилища под айди пользователя, где будут хранится все сообщения с клавами. Удаления этого хранилища еще
-    info = await cache.get(user_id)
-    await cache.delete(user_id)
-    # Прохождение по словарю с сообщениями и состояниями. Перевод всех сообщений до нового в неактивное состояние и редактировние клавы
-    if info:
-        for key, value in info.items():
-            if value == 'not active':
-                continue
-            elif value == 'active' and status == 'not active':
-                info[key] = status
-            elif value == 'active' and message_id != key:
-                value = 'not active'
-                info[key] = value
-                try:
-                    await bot.edit_message_reply_markup(chat_id=user_id, 
-                                                        message_id=key,
-                                                        reply_markup=markup)
-                except (exceptions.MessageToEditNotFound, exceptions.MessageNotModified):
-                    pass
-        # Добавление нового сообщения со статусом
-        info[message_id] = status
-        await cache.set(user_id, info)
-    else:
-        info = {}
-        info[message_id] = status
-        await cache.set(user_id, info)
-        # Очистка кеш хранилища через час, чтобы не нагружать сервак. По идее должно все работать
-        # await asyncio.sleep(3600)
-        # await cache.delete(user_id)
-
-async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, message_id: int = None, state: FSMContext = None):
-    if chat_type == 'private':
-        # Таймаут на задачу вопроса и возврат пользователя если он так и не задал вопрос (проверяет по измению состояния)
-        await asyncio.sleep(time_for_sleep)
-        if await state.get_state() == 'User_Panel:boltun_question':
-            await state.finish()
-            bot_answer = await bot.send_message(chat_id=chat_id, 
-                                text='Вы превисили время на вопрос. Возвращаю вас обратно в меню',
-                                reply_markup=user_keyboard)
-            await active_keyboard_status(user_id=chat_id, 
-                message_id=bot_answer.message_id, 
-                status='active')
-        else:
-            return
-    elif chat_type == 'supergroup':
-        await asyncio.sleep(time_for_sleep)
-        await bot.delete_message(chat_id=chat_id,
-                                 message_id=message_id)
-
-# @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
-async def process_videos(message: types.Message):
-    print(message.video)
-    print(message.document)

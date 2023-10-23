@@ -1,6 +1,6 @@
 import aiosqlite
 
-from additional_functions import process_connection_to_excel
+from additional_functions import process_connection_to_excel, execution_count_decorator
 
 class Database:
     def __init__(self):
@@ -15,6 +15,7 @@ class Database:
     async def create_table(self):
         # Создание таблицы в базе данных, если она еще не была создана
         async with aiosqlite.connect('database.db') as conn:
+            
             await conn.execute('''CREATE TABLE IF NOT EXISTS admin_questions
                                (id INTEGER PRIMARY KEY AUTOINCREMENT,
                                user_id INTEGER,
@@ -23,6 +24,7 @@ class Database:
                                question TEXT,
                                quarry_date REAL NULL,
                                gpt_answer TEXT DEFAULT NULL,
+                               token_consumption INTEGER UNSIGNED NOT NULL,
                                answer TEXT DEFAULT NULL,
                                moder_answer_date REAL NULL,
                                moder_id INTEGER,
@@ -80,6 +82,15 @@ class Database:
                                user_id INTEGER,
                                user_name TEXT)''')
             
+            await conn.execute('''CREATE TABLE IF NOT EXISTS raw_data (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               supergroup_id INTEGER DEFAULT NULL,
+                               chat_type TEXT NOT NULL,
+                               chat_names TEXT NULL,
+                               announcement TEXT DEFAULT NULL,
+                               message TEXT DEFAULT NULL
+                               )''')
+            
     async def create_infromation_about_moder(self):
         async with aiosqlite.connect('database.db') as conn:
             await conn.execute('''CREATE TABLE IF NOT EXISTS moder_information
@@ -92,8 +103,7 @@ class Database:
             async with conn.execute('SELECT moder_id FROM moder_information') as cursor:
                 check = await cursor.fetchall()
             if len(check) == 0:
-                moder_infromation = {'Егор': 869012176} 
-                                    #  'Александр': 6231172367}
+                moder_infromation = {'Егор': 869012176, 'Александр': 6231172367}
                 for moder_name, moder_id in moder_infromation.items():
                     await conn.execute('INSERT INTO moder_information (moder_id, moder_name, role) VALUES (?, ?, ?)', 
                                        (moder_id, moder_name, 'Owner'))
@@ -137,11 +147,12 @@ class Database:
                                                              moder_name, question_id)):
             await self.connection.commit()
 
-    async def update_gpt_answer(self, question_id: int, answer: str):
+    async def update_gpt_answer(self, question_id: int, tokens: int, answer: str):
         if self.connection is None:
             await self.create_connection()
-        async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?
-                                        WHERE id = ?''', (answer, question_id)):
+        async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?,
+                                        token_consumption = ?,
+                                        WHERE id = ?''', (answer, tokens, question_id)):
             await self.connection.commit()
 
     async def get_user_id(self, question_id):
@@ -295,15 +306,27 @@ class Database:
             await self.connection.commit()
 
     async def start_project_information(self):
+        @execution_count_decorator
+        async def selecting_programms(resulted_list: list, iter_num: int, exeption_raised: bool):
+                await self.connection.execute(f'''INSERT INTO projects (team, project, project_tag)
+                                    SELECT '{resulted_list[0][iter_num]}', '{resulted_list[1][iter_num]}', '{resulted_list[2][iter_num]}'
+                                    WHERE NOT EXISTS (SELECT 1 FROM projects WHERE team = '{resulted_list[0][iter_num]}' AND project = '{resulted_list[1][iter_num]}' AND project_tag = '{resulted_list[2][iter_num]}');''')
+                await self.connection.commit()
+
         if self.connection is None:
             await self.create_connection()
         result = await process_connection_to_excel(status='start')
         for i in range(len(result[1])):
-            async with self.connection.execute(f'''INSERT INTO projects (team, project, project_tag)
-                SELECT '{result[0][i]}', '{result[1][i]}', '{result[2][i]}'
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM projects 
-                    WHERE team = '{result[0][i]}' AND project = '{result[1][i]}' AND project_tag = '{result[2][i]}'
-                );
-                '''):
+            try:
+               await selecting_programms(resulted_list=result, iter_num=i, exeption_raised=False)
+            except IndexError:
+               await selecting_programms(resulted_list=result, iter_num=i, exeption_raised=True)
+    
+    async def raw_data_add(self, data: str, data_type: str, chat_names: dict, chat_type: str, chat_id: int = None):
+        if self.connection is None:
+            await self.create_connection()
+        
+        if data_type == "announcement":
+            async with self.connection.execute(f'''INSERT INTO raw_data (announcement, chat_type, chat_names) VALUES 
+                                               (?, ?, ?)''', (data, chat_type, chat_names)):
                 await self.connection.commit()

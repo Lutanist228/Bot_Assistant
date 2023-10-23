@@ -18,6 +18,8 @@ from aiogram.utils import exceptions
 from aiogram.utils.exceptions import TelegramAPIError
 import asyncio
 from aiogram.types import InputFile
+import copy
+from aiogram.types import ReplyKeyboardRemove 
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
@@ -32,6 +34,7 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
                                     moder_id=callback.message.from_user.id,
                                     moder_name=callback.message.from_user.full_name)
     # Обработка возврата в главное меню для всех
+    await callback.message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
     user_id = callback.from_user.id
     moder_ids = await db.get_moder()
     await state.finish()
@@ -52,108 +55,112 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data == 'user_instruction':
-        await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
-        bot_answer_1 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
-        await state.finish()
-        await active_keyboard_status(user_id=callback.from_user.id, 
-                            message_id=bot_answer_1.message_id, 
-                            status='active')
-    elif callback.data == 'moder_instruction':
-        await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPWUJ24mmC2G8ozWpjDW05PxEorRyAAI7PwACr8VQSBscvkHFAmYDMAQ')
-        await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
-        await state.finish()
-    elif callback.data == 'make_question':
+
+    callback_data = callback.data
+
+    match callback_data:
+        case 'user_instruction':
+            await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPmUJ25hpDXYYU7wgNxhjRhfRIZtqAAI8PwACr8VQSFPmdcVy5dhpMAQ')
+            bot_answer_1 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+            await state.finish()
+            await active_keyboard_status(user_id=callback.from_user.id, 
+                                message_id=bot_answer_1.message_id, 
+                                status='active')
+        case 'moder_instruction':
+            await bot.send_document(chat_id=callback.from_user.id, document='BQACAgIAAxkBAAJLPWUJ24mmC2G8ozWpjDW05PxEorRyAAI7PwACr8VQSBscvkHFAmYDMAQ')
+            await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+            await state.finish()
+        case 'make_question':
         # Обработка нажатия пользователя, чтобы задать вопрос и переход в это состояние
-        bot_answer = await callback.message.edit_text('Задайте свой вопрос. Если хотите прикрепить скриншот, то отправляйте строго одно фото. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.boltun_question.set()
-        await state.update_data(message_id=bot_answer.message_id)
-        await active_keyboard_status(user_id=callback.from_user.id,
-                                     message_id=bot_answer.message_id,
-                                     status='active')
-        await process_timeout(time_for_sleep=600,
-                        state=state,
+            bot_answer = await callback.message.edit_text('Задайте свой вопрос. Если хотите прикрепить скриншот, то отправляйте строго одно фото. Главное меню отменит ваше действие', reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.boltun_question.set()
+            await state.update_data(message_id=bot_answer.message_id)
+            await active_keyboard_status(user_id=callback.from_user.id,
+                                        message_id=bot_answer.message_id,
+                                        status='active')
+            await process_timeout(time_for_sleep=600,
+                            state=state,
                         chat_id=callback.from_user.id,
                         chat_type=callback.message.chat.type)
-    elif callback.data == 'number_unanswered':
-        # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
-        number = await db.get_number_of_unanswered_questions()
-        await callback.message.answer(f'Количество вопросов без ответа: {number}')
-    elif callback.data == 'answer_question':
-        # Обработка нажатия модера для показа вопросов (Вопрос номер ...). И создание на основе информации из бд клавиатуры для этих вопросов
-        result = await db.get_list_of_unaswered_questions()
-        keyboard = await create_inline_keyboard(result)
-        await callback.message.edit_text('Просмотрите и выберите вопрос', reply_markup=keyboard)
-        await Moder_Panel.choosing_answer.set()
-    elif callback.data == 'add_moder':
-        # Добавить модера, надо сделать проверку, что именно айди и имя через пробел и т д
-        await callback.message.edit_text('Введите id и имя модератора через пробел.\n Роли: Moder и Owner', reply_markup=glavnoe_menu_keyboard)
-        await Moder_Panel.add_moder.set()
-    elif callback.data == 'delete_moder':
-        # Удаление модера
-        await callback.message.edit_text('Введите id модера', reply_markup=glavnoe_menu_keyboard)
-        await Moder_Panel.delete_moder.set()
-    elif callback.data =='upload_base':
-        pass
-    elif callback.data == 'check_programm':
-        await User_Panel.check.set()
-        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
-                                         reply_markup=check_programm_keyboard)
-    elif callback.data == 'make_announcement':
-        await Moder_Panel.make_announcement.set()
-        await callback.message.edit_text('Введите сообщение, которое хотите сделать объявлением', reply_markup=glavnoe_menu_keyboard)
-    elif callback.data == 'registration':
-        await bot.send_chat_action(chat_id=callback.from_user.id,
-                                   action='upload_document')
-        await bot.send_document(chat_id=callback.from_user.id,
-                                document='BAACAgIAAxkBAAJ9-WUWcKHKC88mq-EXiF4woyUWle7vAALXMQACCAa5SLfFZK6m08nCMAQ')
-        bot_answer_2 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
-        await active_keyboard_status(user_id=callback.from_user.id, 
-                            message_id=bot_answer_2.message_id, 
+        case 'number_unanswered':
+            # Получение количества вопросов без ответа, мб полезная для кого то функция, просто добавил
+            number = await db.get_number_of_unanswered_questions()
+            await callback.message.answer(f'Количество вопросов без ответа: {number}')
+        case 'answer_question':
+            # Обработка нажатия модера для показа вопросов (Вопрос номер ...). И создание на основе информации из бд клавиатуры для этих вопросов
+            result = await db.get_list_of_unaswered_questions()
+            keyboard = await create_inline_keyboard(result)
+            await callback.message.edit_text('Просмотрите и выберите вопрос', reply_markup=keyboard)
+            await Moder_Panel.choosing_answer.set()
+        case 'add_moder':
+            # Добавить модера, надо сделать проверку, что именно айди и имя через пробел и т д
+            await callback.message.edit_text('Введите id и имя модератора через пробел.\n Роли: Moder и Owner', reply_markup=glavnoe_menu_keyboard)
+            await Moder_Panel.add_moder.set()
+        case 'delete_moder':
+            # Удаление модера
+            await callback.message.edit_text('Введите id модера', reply_markup=glavnoe_menu_keyboard)
+            await Moder_Panel.delete_moder.set()
+        case 'upload_base':
+            pass
+        case'check_programm':
+            await User_Panel.check.set()
+            await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы проверить вашу программу на зачисление', 
+                                            reply_markup=check_programm_keyboard)
+        case 'make_announcement':
+            await Moder_Panel.make_announcement.set()
+            await callback.message.edit_text('Введите сообщение, которое хотите сделать объявлением', reply_markup=glavnoe_menu_keyboard)
+        case 'registration':
+            await bot.send_chat_action(chat_id=callback.from_user.id,
+                                    action='upload_document')
+            await bot.send_document(chat_id=callback.from_user.id,
+                                    document='BAACAgIAAxkBAAJ9-WUWcKHKC88mq-EXiF4woyUWle7vAALXMQACCAa5SLfFZK6m08nCMAQ')
+            bot_answer_2 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+            await active_keyboard_status(user_id=callback.from_user.id, 
+                                message_id=bot_answer_2.message_id, 
                             status='active')
-    elif callback.data == 'lk_using':
-        await bot.send_chat_action(chat_id=callback.from_user.id,
-                                   action='upload_document')
-        await bot.send_document(chat_id=callback.from_user.id,
-                        document='BAACAgIAAxkBAAJ9_GUWcMTCVGHzUTM7XexCL8F1ErdeAALYMQACCAa5SI0J7nAiv75_MAQ')
-        bot_answer_3 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
-        await active_keyboard_status(user_id=callback.from_user.id, 
+        case 'lk_using':
+            await bot.send_chat_action(chat_id=callback.from_user.id,
+                                    action='upload_document')
+            await bot.send_document(chat_id=callback.from_user.id,
+                            document='BAACAgIAAxkBAAJ9_GUWcMTCVGHzUTM7XexCL8F1ErdeAALYMQACCAa5SI0J7nAiv75_MAQ')
+            bot_answer_3 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+            await active_keyboard_status(user_id=callback.from_user.id, 
                             message_id=bot_answer_3.message_id, 
                             status='active')
-    elif callback.data == 'innopolis_usage':
-        await bot.send_chat_action(chat_id=callback.from_user.id,
-                                   action='upload_document')
-        await bot.send_document(chat_id=callback.from_user.id,
-                                document='BQACAgQAAxkBAAKPlWUcEzWLAhcQKm5ByYe5JfKp74gIAAKrEQACxmLhUHN10mpONAMsMAQ')
-        bot_answer_4 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
-        await active_keyboard_status(user_id=callback.from_user.id, 
-                            message_id=bot_answer_4.message_id, 
+        case 'innopolis_usage':
+            await bot.send_chat_action(chat_id=callback.from_user.id,
+                                    action='upload_document')
+            await bot.send_document(chat_id=callback.from_user.id,
+                                    document='BQACAgQAAxkBAAKPlWUcEzWLAhcQKm5ByYe5JfKp74gIAAKrEQACxmLhUHN10mpONAMsMAQ')
+            bot_answer_4 = await callback.message.answer('Вернитесь в главное меню', reply_markup=glavnoe_menu_keyboard)
+            await active_keyboard_status(user_id=callback.from_user.id, 
+                                message_id=bot_answer_4.message_id, 
                             status='active')
-    elif callback.data == 'get_link':
-        await User_Panel.check.set()
-        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы получить ссылку', 
+        case 'get_link':
+            await User_Panel.check.set()
+            await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы получить ссылку', 
                                          reply_markup=find_link_keyboard)
-    elif callback.data == 'unical_users':
-        unical_users = set()
-        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
-        for id in ids:
-            unical_users.add(id[0])
-        send_time = len(unical_users) / 20 * 5.1
-        await callback.message.answer(f'Количество уникальных пользователей: {len(unical_users)}\nПримерное время рассылки для них: {round(send_time, 2)} секунд')
-    elif callback.data == 'suggestion':
-        await User_Panel.suggestion.set()
-        bot_answer_5 = await callback.message.edit_text('Введите вашу идею или предложение по улучшению. По желанию можете прикрепить одно фото', reply_markup=glavnoe_menu_keyboard)
-        await active_keyboard_status(user_id=callback.from_user.id, 
+        case 'unical_users':
+            unical_users = set()
+            ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
+            for id in ids:
+                unical_users.add(id[0])
+            send_time = len(unical_users) / 20 * 5.1
+            await callback.message.answer(f'Количество уникальных пользователей: {len(unical_users)}\nПримерное время рассылки для них: {round(send_time, 2)} секунд')
+        case 'suggestion':
+            await User_Panel.suggestion.set()
+            bot_answer_5 = await callback.message.edit_text('Введите вашу идею или предложение по улучшению. По желанию можете прикрепить одно фото', reply_markup=glavnoe_menu_keyboard)
+            await active_keyboard_status(user_id=callback.from_user.id, 
                             message_id=bot_answer_5.message_id, 
                             status='active')
-    elif callback.data == 'find_tutor':
-        await User_Panel.check.set()
-        await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы найти тьютора', 
-                                         reply_markup=tutor_keyboard)
-    elif callback.data == 'registration_to_project':
-        await User_Panel.check.set()
-        await callback.message.edit_text('Выберите способ для идентификации вас', 
-                                         reply_markup=registration_keyboard)
+        case 'find_tutor':
+            await User_Panel.check.set()
+            await callback.message.edit_text('Выберите поиск по ФИО или СНИЛС, чтобы найти тьютора', 
+                                            reply_markup=tutor_keyboard)
+        case 'registration_to_project':
+            await User_Panel.check.set()
+            await callback.message.edit_text('Выберите способ для идентификации вас', 
+                                            reply_markup=registration_keyboard)
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -339,19 +346,24 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
 @dp.callback_query_handler(state=Moder_Panel.answer_panel)
 async def generate_answer(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'generate_answer':
+            await callback.answer(text="Подождите - текст для ответа генерируется") 
             await callback.message.delete()
             data = await state.get_data()
             question_id = data['question_id']
             question = data['question']
-            answer = await answer_information(question=question)
-            await db.update_gpt_answer(question_id=question_id, answer=answer)
+            answer, total_consumption  = await answer_information(question=question)
+            await bot.send_message(chat_id=callback.from_user.id, text=f"Потрачено токенов на запрос: {total_consumption}")
+            await db.update_gpt_answer(question_id=question_id, answer=answer, tokens=total_consumption)
             await callback.message.answer(f'Сгенерированный ответ:\n{answer}')
+            await callback.message.answer(f'Скопируйте и отправьте данный ответ или напишите свой')
             await Moder_Panel.waiting_for_answer.set()
     elif callback.data == 'do_not_generate_answer':
+        await callback.answer(text="Просим написать текст-ответ на поставленный вопрос")
         await callback.message.delete()
         await callback.message.answer('Напишите свой ответ', reply_markup=glavnoe_menu_keyboard)
         await Moder_Panel.waiting_for_answer.set()
     elif callback.data == 'check_history':
+        await callback.answer(text="Вам доступна история диалога с пользователем.\nПроаналировав историю, напишите ваш ответ")
         data = await state.get_data()
         question_id = data['question_id']
         user_id = await db.get_user_id(question_id=question_id)
@@ -384,15 +396,23 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
 @dp.callback_query_handler(state=Moder_Panel.make_announcement)
 async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    announcement = data['announcement_text']
+    announcement = data['announcement_text'] 
+
+    announcement_copy = copy.copy(announcement) ; announcement_copy = f"""\n
+                ----------------I-N-F-O-B-L-O-C-K----------------
+                {announcement_copy}
+                ----------------I-N-F-O-B-L-O-C-K---------------- \n"""
+
     ids_to_send = set()
-    supergroup_ids = {'Общая информация по ДПП': -1001966706612,
-                      'Разработчик электронных медицинских сервисов': -1001944717245,
-                      'Специалист по анализу медицинских данных': -1001938691427,
-                      'DevOps': -1001910975819,
-                      'VR/AR разработчик': -1001983546737}
+    # supergroup_ids = {'Общая информация по ДПП': -1001966706612,
+    #                   'Разработчик электронных медицинских сервисов': -1001944717245,
+    #                   'Специалист по анализу медицинских данных': -1001938691427,
+    #                   'DevOps': -1001910975819,
+    #                   'VR/AR разработчик': -1001983546737}
+    supergroup_ids = {'Тестовый чат': -4003002599}
     blocked_bot_counter = 0
-    if callback.data == 'private_announcement':
+
+    async def private_sending(blocked_bot_counter=blocked_bot_counter):
         ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
             ids_to_send.add(id[0])
@@ -418,43 +438,30 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer_2.message_id,
                                              status='active')
-                
+
+    async def group_sending():
+        for name, supergroup in supergroup_ids.items():
+            await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
+
+    # Тут бд по объявлениям
+    chat_names = chat_names="".join([key for key in supergroup_ids.keys()])
+    if callback.data == 'private_announcement':
+        await private_sending()
+        await db.raw_data_add(data=announcement, data_type="announcement", chat_type="private", chat_names="None")
+        save_to_txt(chat_gpt=announcement_copy)
         await callback.message.edit_text(text=f'Объявление отправлено, вернитесь в главное меню.\nКоличество людей, заблокировавших бота: {blocked_bot_counter}', 
                                          reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'supergroup_announcement':
-        for name, supergroup in supergroup_ids.items():
-            await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
+        await group_sending()
+        await db.raw_data_add(data=announcement, data_type="announcement", chat_type="supergroup", chat_names=chat_names)
+        save_to_txt(chat_gpt=announcement_copy)
         await callback.message.edit_text(text='Объявление отправлено, вернитесь в главное меню', 
                                     reply_markup=glavnoe_menu_keyboard)
     elif callback.data == 'both_announcement':
-        ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
-        for id in ids:
-            ids_to_send.add(id[0])
-        await callback.message.edit_text('Объявление отправляется, ожидайте')
-        for index, id_to_send in enumerate(ids_to_send):
-            if index % 10 == 0:
-                await asyncio.sleep(1)
-            try:
-                await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
-                                                    parse_mode=types.ParseMode.HTML)
-                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
-                await active_keyboard_status(user_id=id_to_send,
-                                             message_id=bot_answer.message_id,
-                                             status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
-                blocked_bot_counter += 1
-                continue
-            except (exceptions.RetryAfter):
-                await asyncio.sleep(3)
-                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
-                                                      reply_markup=user_keyboard, parse_mode=types.ParseMode.HTML)
-                await active_keyboard_status(user_id=id_to_send,
-                                             message_id=bot_answer_2.message_id,
-                                             status='active')
-        
-        for name, supergroup in supergroup_ids.items():
-            await bot.send_message(chat_id=supergroup, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}', parse_mode=types.ParseMode.HTML)
-            
+        await private_sending()
+        await group_sending()
+        await db.raw_data_add(data=announcement, data_type="announcement", chat_type="mixed", chat_names=chat_names)
+        save_to_txt(chat_gpt=announcement_copy)
         await callback.message.edit_text(text=f'Объявление отправлено, вернитесь в главное меню.\nКоличество людей, заблокировавших бота: {blocked_bot_counter}', 
                                 reply_markup=glavnoe_menu_keyboard)
 

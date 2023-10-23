@@ -1,5 +1,6 @@
 from cache_container import cache
 from keyboards import glavnoe_menu_button
+from keyboards import user_keyboard
 
 from fuzzywuzzy import fuzz
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -7,6 +8,11 @@ import json
 import re
 import pandas as pd
 import gspread
+from functools import wraps
+from aiogram import types
+from aiogram.dispatcher import FSMContext
+from aiogram.utils import exceptions
+import asyncio
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -20,7 +26,7 @@ def save_to_txt(file_path: str = "", print_as_finished = True, save_mode: str = 
         сохранять файл в конкретную директорию, то файл сохраняется в директорию скрипта с save_to_txt;
         2) print_as_finished - флаг, который контролирует вывод надписи The information has been added to the {file_name}.txt file.;
         3) save_mode - формат работы с .txt файлом, по умолчанию - 'a';
-        4) **kwargs - основа функции, где key - назавние файла, а value - содержимое файла;
+        4) **kwargs - основа функции, где key - название файла, а value - содержимое файла;
         """
         for key, value in kwargs.items():
             file_name = key
@@ -47,9 +53,9 @@ def fuzzy_handler(boltun_text: list, user_question: str):
             phrase = phrase.replace('u: ','')
             current_similarity_rate = (fuzz.token_sort_ratio(phrase, user_question))
 
-            if 50 <= current_similarity_rate <= 90:
+            if 50 <= current_similarity_rate <= 85:
                 inline_questions.append(phrase) 
-            elif current_similarity_rate > 90:
+            elif current_similarity_rate > 85:
                 inline_questions.clear()
 
             if(max_similarity_rate < current_similarity_rate and max_similarity_rate != current_similarity_rate):
@@ -216,7 +222,7 @@ async def process_connection_to_excel(status: str, row: int = None, worksheet_na
     try:
         gc = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
     except FileNotFoundError:
-        gc = gspread.service_account(filename=r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\other_file\google_key.json")
+        gc = gspread.service_account(filename=r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\files_for_server\google_key.json")
     sheet = gc.open_by_url(EXCEL_TABLE_PATH)
     worksheet_list = sheet.worksheets()
     if status == 'ФИО':
@@ -236,3 +242,21 @@ async def process_connection_to_excel(status: str, row: int = None, worksheet_na
         project = worksheet.col_values(2)
         tags = worksheet.col_values(3)
         return team, project, tags
+    
+def execution_count_decorator(func):
+    """
+    Как работает этот декоратор:
+    1. Декоратор отсчитывает вызов той или иной функции при аварийном режиме,
+    т.е. тогда, когда срабатывает то или иное исключение.
+    2. Он меняет изменяет аргемент до тех пор, пока алгоритм не выйдет из
+    аварийной ситуации
+    """
+    async_wrapper_counter = 0
+    async def async_wrapper(*args, **kwargs):
+        nonlocal async_wrapper_counter
+        if kwargs["exeption_raised"] == True:
+            async_wrapper_counter += 1
+            kwargs["iter_num"] -= async_wrapper_counter
+        return await func(*args, **kwargs)
+    return async_wrapper
+

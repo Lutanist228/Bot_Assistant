@@ -22,8 +22,8 @@ async def excel_data():
         programs = pd.read_excel(path_old_table, sheet_name='Общая таблица')
         enrolled_programs = pd.read_excel(path_enrolled_table, sheet_name=['Анализ', 'Разработка', 'VR', 'DevOps'], skiprows=1)
     except FileNotFoundError:
-        programs = pd.read_excel(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\other_file\Заявки.xlsx", sheet_name='Общая таблица')
-        enrolled_programs = pd.read_excel(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\other_file\ЦК 2023.xlsx", sheet_name=['Анализ', 'Разработка', 'VR', 'DevOps'], skiprows=1)
+        programs = pd.read_excel(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\files_for_server\Заявки.xlsx", sheet_name='Общая таблица')
+        enrolled_programs = pd.read_excel(r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\files_for_server\ЦК 2023.xlsx", sheet_name=['Анализ', 'Разработка', 'VR', 'DevOps'], skiprows=1)
         #C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\other_file\Заявки.xlsx#
 
     await cache.set('excel_data', programs)
