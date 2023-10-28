@@ -1,57 +1,38 @@
 from main import dp, bot
 from aiogram import types
+from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
+from message_handlers import cache, db, active_keyboard_status, quarry_definition_decorator, user_registration_decorator
+from keyboards import user_keyboard, moder_choose_question_keyboard, glavnoe_menu_keyboard
+from keyboards import generate_answer_keyboard, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
 from keyboards import Boltun_Step_Back, Boltun_Keys
-from additional_functions import fuzzy_handler
-from additional_functions import create_inline_keyboard, file_reader, save_to_txt
-from message_handlers import Global_Data_Storage, cache, db, active_keyboard_status
-from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
-from keyboards import generate_answer_keyboard, Boltun_Step_Back, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
 from chat_gpt_module import answer_information
 from message_handlers import BOLTUN_PATTERN, process_timeout, Global_Data_Storage
-from states import User_Panel, Moder_Panel, Registration
+from states import User_Panel, Moder_Panel
 
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.dispatcher import FSMContext
 import json
 from aiogram.dispatcher.filters import Text
 from aiogram.utils import exceptions
-from aiogram.utils.exceptions import TelegramAPIError
 import asyncio
-from aiogram.types import InputFile
 import copy
-from aiogram.types import ReplyKeyboardRemove 
 
 #------------------------------------------GENERAL HANDLERS---------------------------------------------
 
 @dp.callback_query_handler(Text('glavnoe_menu'), state='*')
+@user_registration_decorator
 async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext):
+    # Возможно этот блок ответственен за удаление вопросов при возврате в главное меню 
+    # в тех или иных состояниях процесса
     current_state = await state.get_state() 
     if current_state == 'Moder_Panel:answer_panel' or current_state == 'Moder_Panel:waiting_for_answer':
         data = await state.get_data()
-        question_id = data['question_id']
-        await db.update_question_id(question_id=question_id,
+        await db.update_question_id(question_id=data['question_id'],
                                     answer=None,
                                     moder_id=callback.message.from_user.id,
                                     moder_name=callback.message.from_user.full_name)
-    # Обработка возврата в главное меню для всех
-    await callback.message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
-    user_id = callback.from_user.id
-    moder_ids = await db.get_moder()
-    await state.finish()
-    for id in moder_ids:
-        if user_id == id[0]:
-            if id[1] == 'Owner':
-                await callback.message.edit_text('Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
-            else:
-                await callback.message.edit_text('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
-            return
-    try:
-        bot_answer = await callback.message.edit_text('Выберите дальнейшее действие', reply_markup=user_keyboard)
-        await active_keyboard_status(user_id=callback.from_user.id, 
-                                message_id=bot_answer.message_id, 
-                                status='active')
-    except exceptions.MessageNotModified:
-        pass
+    else:
+        await state.finish()
 
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
@@ -170,8 +151,6 @@ async def boltun_keyboard(callback: types.CallbackQuery, callback_data: dict, st
         global BOLTUN_PATTERN
         BOLTUN_PATTERN = file_reader("boltun.txt")
         cb_data = callback_data["action"].split("_") ; cb_data = int(cb_data[len(cb_data) - 1])
-        # data = callback.message.reply_markup.inline_keyboard
-        # key = f'{callback_data["@"]}:{callback_data["action"]}'
 
         menu_data = await cache.get(Global_Data_Storage.menu_temp_inf)
         if menu_data:
@@ -423,7 +402,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             try:
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
-                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
+                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
@@ -434,7 +413,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await asyncio.sleep(3)
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
-                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=user_keyboard)
+                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer_2.message_id,
                                              status='active')

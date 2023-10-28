@@ -24,7 +24,7 @@ class Database:
                                question TEXT,
                                quarry_date REAL NULL,
                                gpt_answer TEXT DEFAULT NULL,
-                               token_consumption INTEGER UNSIGNED NOT NULL,
+                               token_consumption INTEGER UNSIGNED DEFAULT NULL,
                                answer TEXT DEFAULT NULL,
                                moder_answer_date REAL NULL,
                                moder_id INTEGER,
@@ -103,7 +103,7 @@ class Database:
             async with conn.execute('SELECT moder_id FROM moder_information') as cursor:
                 check = await cursor.fetchall()
             if len(check) == 0:
-                moder_infromation = {'Егор': 869012176, 'Александр': 6231172367}
+                moder_infromation = {'Егор': 869012176,'Александр': 6231172367}
                 for moder_name, moder_id in moder_infromation.items():
                     await conn.execute('INSERT INTO moder_information (moder_id, moder_name, role) VALUES (?, ?, ?)', 
                                        (moder_id, moder_name, 'Owner'))
@@ -143,15 +143,14 @@ class Database:
                                            moder_id = ?, 
                                            moder_name = ?,
                                            moder_answer_date = datetime(julianday("now", "+3 hours"))
-                                           WHERE id = ?''', (answer, moder_id,
-                                                             moder_name, question_id)):
+                                           WHERE id = ?''', (answer, moder_id, moder_name, question_id)):
             await self.connection.commit()
 
     async def update_gpt_answer(self, question_id: int, tokens: int, answer: str):
         if self.connection is None:
             await self.create_connection()
         async with self.connection.execute('''UPDATE admin_questions SET gpt_answer = ?,
-                                        token_consumption = ?,
+                                        token_consumption = ?
                                         WHERE id = ?''', (answer, tokens, question_id)):
             await self.connection.commit()
 
@@ -176,8 +175,8 @@ class Database:
             await self.create_connection()
         async with self.connection.execute('SELECT * FROM admin_questions WHERE id = ?', (question_id,)) as cursor:
             rows = await cursor.fetchall()
-            chat_type = rows[0][11]
-            chat_id = rows[0][12]
+            chat_type = rows[0][12]
+            chat_id = rows[0][13]
             return chat_type, chat_id
         
     async def get_all_questions(self):

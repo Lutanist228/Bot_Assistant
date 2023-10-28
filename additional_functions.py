@@ -85,8 +85,8 @@ async def create_inline_keyboard(rows):
         question = row[4]
         data = {'username': username,
                 'question': question}
-        if row[13] is not None:
-            data['picture'] = row[13]
+        if row[14] is not None:
+            data['picture'] = row[14]
         # Переводим данные в json формат
         serialized_data = json.dumps(data)
         # Сохраняем в кэш память

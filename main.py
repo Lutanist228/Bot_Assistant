@@ -1,9 +1,11 @@
 from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from datetime import datetime
 
 from config_file import OLD_API_TOKEN
 from db_actions import Database
 from cache_container import excel_data
+from additional_functions import save_to_txt
 
 bot = Bot(OLD_API_TOKEN)
 storage = MemoryStorage()
@@ -23,6 +25,7 @@ async def on_startup_wrapper(dp):
 
 def on_shutdown(_):
     print('Бот выключен!')
+
 
 if __name__ == '__main__':
     from message_handlers import dp

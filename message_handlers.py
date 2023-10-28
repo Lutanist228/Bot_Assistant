@@ -63,7 +63,7 @@ async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, mes
         if await state.get_state() == 'User_Panel:boltun_question':
             await state.finish()
             bot_answer = await bot.send_message(chat_id=chat_id, 
-                                text='Вы превисили время на вопрос. Возвращаю вас обратно в меню',
+                                text='Вы превысили время на вопрос. Возвращаю вас обратно в меню',
                                 reply_markup=user_keyboard)
             await active_keyboard_status(user_id=chat_id, 
                 message_id=bot_answer.message_id, 
@@ -93,21 +93,19 @@ def quarry_definition_decorator(func):
         переменными
     """
     @wraps(func) 
-    async def async_wrapper(quarry_type, state, **kwargs):
-                # quarry_type = filter(lambda x: isinstance(x, types.Message), args) ; quarry_type = next(quarry_type)
-             
+    async def async_wrapper(quarry_type, state, **kwargs):             
                 if isinstance(quarry_type, types.Message) == True:
-                    # kwargs["quarry_type"] = types.Message
-                    # kwargs["state"] = state
                     kwargs["chat_id"] = quarry_type.chat.id
                     kwargs["user_id"] = quarry_type.from_user.id
                     kwargs["chat_type"] = quarry_type.chat.type
+                    kwargs["answer_type"] = quarry_type
+                    kwargs["message_id"] = quarry_type.message_id
                 elif isinstance(quarry_type, types.CallbackQuery) == True:
                     kwargs["chat_id"] = quarry_type.message.chat.id
-                    # kwargs["quarry_type"] = types.CallbackQuery
-                    # kwargs["state"] = state
                     kwargs["user_id"] = quarry_type.from_user.id
                     kwargs["chat_type"] = quarry_type.message.chat.type
+                    kwargs["answer_type"] = quarry_type.message
+                    kwargs["message_id"] = quarry_type.message.message_id
                 return await func(**kwargs) 
     return async_wrapper    
 
@@ -121,8 +119,11 @@ def user_registration_decorator(func):
     """
     async def async_wrapper(quarry_type, state, *args):
         @quarry_definition_decorator
-        async def registration(chat_id, user_id, chat_type):
+        async def registration(chat_id, user_id, chat_type, answer_type, message_id):
+            await state.finish()
             moder_ids = await db.get_moder()
+            await answer_type.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
+
             for id in moder_ids:
                 if user_id == id[0]:
                     if id[1] == 'Owner':
@@ -132,7 +133,7 @@ def user_registration_decorator(func):
                         await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=common_moder_start_keyboard)
                         return await func(quarry_type, state)
             try:
-                bot_answer = bot.send_message(chat_id=chat_id, text='Выберите дальнейшее действие', reply_markup=user_keyboard)
+                bot_answer = await answer_type.answer(text='Выберите дальнейшее действие', reply_markup=user_keyboard)
                 await active_keyboard_status(user_id=user_id, 
                                     message_id=bot_answer.message_id, 
                                     status='active')
@@ -155,9 +156,7 @@ class Global_Data_Storage():
 @dp.message_handler(commands=['start'], state='*')
 @user_registration_decorator
 async def process_start_message(message: types.Message, state: FSMContext):
-    await state.finish()
-    await bot.send_message(chat_id=message.chat.id, text="Вы успешно вернулись в меню", reply_markup=ReplyKeyboardRemove())
-
+    
     if message.chat.type == 'private':
         pass
     else:
@@ -175,6 +174,11 @@ async def process_start_message(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=User_Panel.boltun_question, content_types=[types.ContentType.TEXT, types.ContentType.PHOTO])
 async def fuzzy_handling(message: types.Message, state: FSMContext):
+    
+    @user_registration_decorator
+    async def inner_registration(message: types.Message, state: FSMContext):
+        pass
+
     markup = InlineKeyboardMarkup()
     global BOLTUN_PATTERN
     # Если есть фото в сообщении, то будет брать из него описание или будет просто грузить фото без сообщения
@@ -187,7 +191,7 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
             await state.update_data(question='By system: Проблема на приложенном фото')
     else:
         await state.update_data(question=message.text) 
-        Global_Data_Storage.question_temp_inf = message.text
+        Global_Data_Storage.question_temp_inf = message
     data = await state.get_data() # сохраненные данные извлекаются и присваиваются data
     await User_Panel.boltun_reply.set()
     reply_text, similarity_rate, list_of_questions = fuzzy_handler(boltun_text=BOLTUN_PATTERN, user_question=data['question'])
@@ -249,13 +253,8 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                                 message_id=message.message_id, 
                                                 question=data['question'],
                                                 chat_type=message.chat.type)
-        # Отправляем модерам, что пришел новый вопрос. Нужно придумать, что через определенный тайминг отправляло количество неотвеченных вопросов в чат тьюторов
-        await state.finish()
-        bot_answer_3 = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
-        # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
-        await active_keyboard_status(user_id=message.from_user.id, 
-            message_id=bot_answer_3.message_id, 
-            status='active')
+            await message.answer('Вопрос был передан')
+            await inner_registration(message, state)
 
 @dp.message_handler(content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.VIDEO, CT.VOICE, CT.STICKER, CT.POLL, CT.VIDEO_NOTE], state=User_Panel.boltun_question)
 async def wrong_format(message: types.Message, state: FSMContext):
@@ -263,21 +262,16 @@ async def wrong_format(message: types.Message, state: FSMContext):
     await state.finish()
 
 @dp.message_handler(text = "Не нашел подходящего вопроса", state=User_Panel.boltun_reply)
+@user_registration_decorator
 async def redirect_question(message: types.Message, state: FSMContext):
-    await User_Panel.making_question.set()
+    # await User_Panel.making_question.set()
     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
     await db.add_question(user_id=message.from_user.id, 
                                         user_name=message.from_user.full_name, 
                                         message_id=message.message_id, 
-                                        question=Global_Data_Storage.question_temp_inf,
+                                        question=Global_Data_Storage.question_temp_inf.text,
                                         chat_type=message.chat.type)
-    await state.finish()
-    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
-    bot_answer = await message.reply('Вопрос был передан', reply_markup=user_keyboard)
-    # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
-    await active_keyboard_status(user_id=message.from_user.id, 
-                message_id=bot_answer.message_id,     
-                status='active')
+    await bot.send_message(chat_id=message.from_user.id, text='Вопрос был передан', reply_to_message_id=Global_Data_Storage.question_temp_inf.message_id)
 
 @dp.message_handler(text = "Вернуться к выбору", state=User_Panel.boltun_reply)
 # данный хендлер принимает или сообщение "Завершить процесс", что приводит к выходу из состояний,
@@ -296,17 +290,13 @@ async def on_reply_processing(message: types.Message):
     # необходимо поставить антифлуд на данный хендлер через MiddleWare
 
 @dp.message_handler(text = "Завершить процесс", state=User_Panel.boltun_reply)
+@user_registration_decorator
 async def quitting(message: types.Message, state: FSMContext):
-    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
-    bot_answer = await message.reply("Действие отменено", reply_markup=user_keyboard)
-    await state.finish()
-    # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
-    await active_keyboard_status(user_id=message.from_user.id, 
-            message_id=bot_answer.message_id, 
-            status='active')
+    pass
 
 @dp.message_handler(text = "Меня не устроил ответ", state=User_Panel.boltun_reply)
-async def quitting(message: types.Message):
+@user_registration_decorator
+async def quitting(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question = await db.get_fuzzy_id(user_id=user_id)
     user_name = message.from_user.full_name
@@ -315,12 +305,7 @@ async def quitting(message: types.Message):
                                         question=question[0], 
                                         chat_type=message.chat.type, 
                                         message_id=message.message_id)
-    await message.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
-    bot_answer = await message.reply('Вопрос был передан', reply_markup=glavnoe_menu_keyboard)
-    # Показываем, что сообщение выще с Inline является на данный момент активным. Посылаем айди этого сообщения и айди чата
-    await active_keyboard_status(user_id=message.from_user.id, 
-        message_id=bot_answer.message_id, 
-        status='active')
+    await bot.send_message(chat_id=message.from_user.id, text='Вопрос был передан')
 
 @dp.message_handler(text_startswith='question')
 async def process_question_command(message: types.Message):
@@ -347,37 +332,26 @@ async def process_question_command(message: types.Message):
         await process_timeout(time_for_sleep=30, chat_id=message.chat.id, chat_type=message.chat.type,
                               message_id=bot_delete.message_id)
 
-@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ", "/start"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
+@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ", "/start"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, User_Panel.check, None])
 async def wrong_format(message: types.Message):
     if message.chat.type == 'private':
         await message.delete()
         await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
 
-@dp.message_handler(lambda message: message.text not in ["Вернуться к выбору", "Завершить процесс", "Меня не устроил ответ", "/start"], content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.POLL, CT.STICKER, CT.VIDEO, CT.VIDEO_NOTE, CT.TEXT, CT.VOICE, CT.PHOTO], state=[User_Panel.boltun_reply, None])
-async def wrong_format(message: types.Message):
-    await message.delete()
-    await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте <b>инструкцией</b> к боту", parse_mode="HTML")
-
-@dp.message_handler(state=User_Panel.making_question)
-async def process_question_button(message: types.Message, state: FSMContext):
-    # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-    await db.add_question(message.from_user.id, 
-                                        message.from_user.full_name, 
-                                        message.text, chat_type=message.chat.type, 
-                                        message_id=message.message_id)
-    await state.finish()
-    await message.reply('Вопрос был передан', reply_markup=user_keyboard)
+# @dp.message_handler(state=User_Panel.making_question)
+# async def process_question_button(message: types.Message, state: FSMContext):
+#     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
+#     await db.add_question(message.from_user.id, 
+#                                         message.from_user.full_name, 
+#                                         message.text, chat_type=message.chat.type, 
+#                                         message_id=message.message_id)
+#     await state.finish()
+#     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
 @dp.message_handler(text = 'Вернуться в главное меню', state=None)
-async def back_to_start(message: types.Message):
-    moder_ids = await db.get_moder()
-    for id in moder_ids:
-        if message.from_user.id == id[0]:
-            # Проверка на админа, чтобы добавлять модеров и т д. А то они намудряд и добавят всякой фигни
-            if id[1] == 'Moder':
-                await message.answer('Можем приступить к работе', reply_markup=common_moder_start_keyboard)
-            return
-    await message.answer('Выберите дальнейшее действие', reply_markup=user_keyboard)
+@user_registration_decorator
+async def back_to_start(message: types.Message, state: FSMContext):
+    pass
 
 @dp.message_handler(state=User_Panel.fio)
 async def checking_fio(message: types.Message, state: FSMContext):
@@ -547,42 +521,6 @@ async def process_suggestion(message: types.Message, state: FSMContext):
                         status='active')
         await state.finish()
 
-# @dp.message_handler(state=User_Panel.check_fio)
-# async def checking_fio(message: types.Message, state: FSMContext):
-#     name = message.text.strip()
-#     result = await check_program(name, method_check='fio')
-#     if result == 'Нет в зачислении':
-#         bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
-#         await active_keyboard_status(user_id=message.from_user.id, 
-#                     message_id=bot_answer_1.message_id, 
-#                     status='active')
-#     else:
-#         bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
-#         await db.add_checked_id(user_id=message.from_user.id,
-#                                 user_name=message.from_user.full_name)
-#         await active_keyboard_status(user_id=message.from_user.id, 
-#                         message_id=bot_answer_2.message_id, 
-#                         status='active')
-#     await state.finish()
-
-# @dp.message_handler(state=User_Panel.check_snils)
-# async def process_check_programm(message: types.Message, state: FSMContext):
-#     name = message.text.strip()
-#     result = await check_program(name, method_check='snils')
-#     if result == 'Нет в зачислении':
-#         bot_answer_1 = await message.answer('Вас нет в списке на зачисление, если это ошибка, то сообщите тьютору или задайте вопрос в главном меню', reply_markup=user_keyboard)
-#         await active_keyboard_status(user_id=message.from_user.id, 
-#                     message_id=bot_answer_1.message_id, 
-#                     status='active')
-#     else:
-#         bot_answer_2 = await message.answer(f'Ваша программа зачисления:\n"{result}"\n', reply_markup=user_keyboard)
-#         await db.add_checked_id(user_id=message.from_user.id,
-#                             user_name=message.from_user.full_name)
-#         await active_keyboard_status(user_id=message.from_user.id, 
-#                         message_id=bot_answer_2.message_id, 
-#                         status='active')
-#     await state.finish()
-
 @dp.message_handler(state=Registration.get_tag)
 async def process_getting_tag(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -670,11 +608,5 @@ async def process_announcement(message: types.Message, state: FSMContext):
     await message.answer('Выберите тип публикации', reply_markup=announcement_keyboard)
 
 #------------------------------------------ERROR HANDLERS-----------------------------------------------
-
-# @dp.errors_handler(exception=TelegramAPIError)
-# async def process_errors(update: types.Update, exception: exceptions):
-#     if isinstance(exception, exceptions.BotBlocked):
-#         await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
-#                                     reply_markup=glavnoe_menu_keyboard)
 
 
