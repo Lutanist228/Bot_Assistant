@@ -306,7 +306,7 @@ async def process_choosing_answer(callback: types.CallbackQuery, state: FSMConte
                                             caption='Приложенный скриншот к вопросу')
                 await callback.message.answer('''Напишите свой ответ или <b>скопируйте</b> ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
                                                 reply_markup=generate_answer_keyboard, parse_mode="HTML")
-                await Moder_Panel.waiting_for_answer.set()
+                await Moder_Panel.answer_panel.set()
             except KeyError:
                 await callback.message.answer('''Напишите свой ответ или <b>скопируйте</b> ответа бота, если считаете его правильным.\nКнопка "Главное меню" вернет в главное меню.''', 
                                                 reply_markup=generate_answer_keyboard)

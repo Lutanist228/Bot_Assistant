@@ -95,17 +95,23 @@ def quarry_definition_decorator(func):
     @wraps(func) 
     async def async_wrapper(quarry_type, state, **kwargs):             
                 if isinstance(quarry_type, types.Message) == True:
-                    kwargs["chat_id"] = quarry_type.chat.id
-                    kwargs["user_id"] = quarry_type.from_user.id
-                    kwargs["chat_type"] = quarry_type.chat.type
-                    kwargs["answer_type"] = quarry_type
-                    kwargs["message_id"] = quarry_type.message_id
+                    kwargs.update({
+                        "chat_id": quarry_type.chat.id,
+                        "user_id": quarry_type.from_user.id,
+                        "chat_type": quarry_type.chat.type,
+                        "answer_type": quarry_type,
+                        "message_id": quarry_type.message_id,
+                        "edit_text": None
+                        })
                 elif isinstance(quarry_type, types.CallbackQuery) == True:
-                    kwargs["chat_id"] = quarry_type.message.chat.id
-                    kwargs["user_id"] = quarry_type.from_user.id
-                    kwargs["chat_type"] = quarry_type.message.chat.type
-                    kwargs["answer_type"] = quarry_type.message
-                    kwargs["message_id"] = quarry_type.message.message_id
+                    kwargs.update({
+                        "chat_id": quarry_type.message.chat.id,
+                        "user_id": quarry_type.from_user.id,
+                        "chat_type": quarry_type.message.chat.type,
+                        "answer_type": quarry_type.message,
+                        "message_id": quarry_type.message.message_id,
+                        "edit_text": quarry_type.message.edit_text
+                        })
                 return await func(**kwargs) 
     return async_wrapper    
 
@@ -119,21 +125,28 @@ def user_registration_decorator(func):
     """
     async def async_wrapper(quarry_type, state, *args):
         @quarry_definition_decorator
-        async def registration(chat_id, user_id, chat_type, answer_type, message_id):
+        async def registration(chat_id, user_id, chat_type, answer_type, message_id, edit_text):
+
+            async def back_to_menu(key_type):
+                if isinstance(quarry_type, types.Message) == True:
+                    await answer_type.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
+                    return await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=key_type)
+                else:
+                    return await edit_text(text='Можем приступить к работе', reply_markup=key_type)
+
             await state.finish()
             moder_ids = await db.get_moder()
-            await answer_type.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
 
             for id in moder_ids:
                 if user_id == id[0]:
                     if id[1] == 'Owner':
-                        await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=moder_owner_start_keyboard)
+                        await back_to_menu(moder_owner_start_keyboard) 
                         return await func(quarry_type, state)
                     else:
-                        await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=common_moder_start_keyboard)
+                        await back_to_menu(common_moder_start_keyboard)
                         return await func(quarry_type, state)
             try:
-                bot_answer = await answer_type.answer(text='Выберите дальнейшее действие', reply_markup=user_keyboard)
+                bot_answer = await back_to_menu(user_keyboard)
                 await active_keyboard_status(user_id=user_id, 
                                     message_id=bot_answer.message_id, 
                                     status='active')
@@ -156,7 +169,6 @@ class Global_Data_Storage():
 @dp.message_handler(commands=['start'], state='*')
 @user_registration_decorator
 async def process_start_message(message: types.Message, state: FSMContext):
-    
     if message.chat.type == 'private':
         pass
     else:
@@ -253,8 +265,8 @@ async def fuzzy_handling(message: types.Message, state: FSMContext):
                                                 message_id=message.message_id, 
                                                 question=data['question'],
                                                 chat_type=message.chat.type)
-            await message.answer('Вопрос был передан')
-            await inner_registration(message, state)
+        await message.answer('Вопрос был передан')
+        await inner_registration(message, state)
 
 @dp.message_handler(content_types = [CT.ANIMATION, CT.AUDIO, CT.DOCUMENT, CT.VIDEO, CT.VOICE, CT.STICKER, CT.POLL, CT.VIDEO_NOTE], state=User_Panel.boltun_question)
 async def wrong_format(message: types.Message, state: FSMContext):
@@ -337,16 +349,6 @@ async def wrong_format(message: types.Message):
     if message.chat.type == 'private':
         await message.delete()
         await message.answer("Просим не спамить сообщениями - будьте внимательны и следуйте инструкции к боту")
-
-# @dp.message_handler(state=User_Panel.making_question)
-# async def process_question_button(message: types.Message, state: FSMContext):
-#     # Обработка вопроса пользователя. Добавляем вопрос в бд (айди пользователя, его имя и вопрос)
-#     await db.add_question(message.from_user.id, 
-#                                         message.from_user.full_name, 
-#                                         message.text, chat_type=message.chat.type, 
-#                                         message_id=message.message_id)
-#     await state.finish()
-#     await message.reply('Вопрос был передан', reply_markup=user_keyboard)
 
 @dp.message_handler(text = 'Вернуться в главное меню', state=None)
 @user_registration_decorator
