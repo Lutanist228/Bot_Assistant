@@ -517,16 +517,20 @@ async def process_getting_tag(message: types.Message, state: FSMContext):
     data = await state.get_data()
     row_num = data['row']
     worksheet_name = data['worksheet']
-    result = await db.get_project(project_tag=message.text)
-    if result:
-        await Registration.role.set()
-        await state.update_data(row=row_num, worksheet=worksheet_name, project=result)
-        await message.answer('Опишите вашу роль в команде. Навыки, опыт и т.д.')
+    acception = await db.process_acception_option(project_tag=message.text)
+    if acception[0] == 'Нет':
+        await message.answer('Запись на этот проект недоступна. Введи другой хэштег.')
     else:
-        bot_answer = await message.answer('Такого проекта нет. Проверьте написание и введите его снова, либо вернитесь в главное меню.', reply_markup=glavnoe_menu_keyboard)
-        await active_keyboard_status(user_id=message.from_user.id, 
-                         message_id=bot_answer.message_id, 
-                         status='active')
+        result = await db.get_project(project_tag=message.text)
+        if result:
+            await Registration.role.set()
+            await state.update_data(row=row_num, worksheet=worksheet_name, project=result)
+            await message.answer('Опишите вашу роль в команде. Навыки, опыт и т.д.')
+        else:
+            bot_answer = await message.answer('Такого проекта нет. Проверьте написание и введите его снова, либо вернитесь в главное меню.', reply_markup=glavnoe_menu_keyboard)
+            await active_keyboard_status(user_id=message.from_user.id, 
+                            message_id=bot_answer.message_id, 
+                            status='active')
 
 @dp.message_handler(state=Registration.role)
 async def process_getting_role(message: types.Message, state: FSMContext):

@@ -241,4 +241,5 @@ async def process_connection_to_excel(status: str, row: int = None, worksheet_na
         team = worksheet.col_values(1)
         project = worksheet.col_values(2)
         tags = worksheet.col_values(3)
-        return team, project, tags
+        acception = worksheet.col_values(6)
+        return team, project, tags, acception

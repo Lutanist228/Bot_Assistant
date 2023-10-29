@@ -57,7 +57,8 @@ class Database:
                                id INTEGER PRIMARY KEY AUTOINCREMENT,
                                team TEXT,
                                project TEXT,
-                               project_tag TEXT)''')
+                               project_tag TEXT,
+                               acception TEXT)''')
             
             await conn.execute('''CREATE TABLE IF NOT EXISTS analiz (
                                id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -265,7 +266,9 @@ class Database:
             result_1 = await cursor.fetchall()
         async with self.connection.execute('SELECT user_id FROM fuzzy_db') as cursor:
             result_2 = await cursor.fetchall()
-        return result_1 + result_2
+        async with self.connection.execute('SELECT user_id FROM fio_and_tg') as cursor:
+            result_3 = await cursor.fetchall()
+        return result_1 + result_2 + result_3
     
     async def add_checked_id(self, user_id: int, user_name: str):
         if self.connection is None:
@@ -306,11 +309,13 @@ class Database:
             await self.create_connection()
         result = await process_connection_to_excel(status='start')
         for i in range(len(result[1])):
-            async with self.connection.execute(f'''INSERT INTO projects (team, project, project_tag)
-                SELECT '{result[0][i]}', '{result[1][i]}', '{result[2][i]}'
+            if i == 0:
+                continue
+            async with self.connection.execute(f'''INSERT INTO projects (team, project, project_tag, acception)
+                SELECT '{result[0][i]}', '{result[1][i]}', '{result[2][i]}', '{result[3][i]}'
                 WHERE NOT EXISTS (
                     SELECT 1 FROM projects 
-                    WHERE team = '{result[0][i]}' AND project = '{result[1][i]}' AND project_tag = '{result[2][i]}'
+                    WHERE team = '{result[0][i]}' AND project = '{result[1][i]}' AND project_tag = '{result[2][i]}' AND acception = '{result[3][i]}'
                 );
                 '''):
                 await self.connection.commit()
@@ -318,6 +323,15 @@ class Database:
     async def add_to_checked_fio(self, user_id: int, username: str, user_fullname: str, fio: str, program: str):
         if self.connection is None:
             await self.create_connection()
+        username = 'https://t.me/' + username
         async with self.connection.execute('INSERT INTO fio_and_tg (user_id, username, user_fullname, fio, program) VALUES (?, ?, ?, ?, ?)',
                                            (user_id, username, user_fullname, fio, program)):
             await self.connection.commit()
+
+    async def process_acception_option(self, project_tag: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT acception FROM projects WHERE project_tag = ?', (project_tag,)) as cursor:
+            result = await cursor.fetchone()
+            return result
+        
