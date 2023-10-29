@@ -147,6 +147,7 @@ def user_registration_decorator(func):
                         return await func(quarry_type, state)
             try:
                 bot_answer = await back_to_menu(user_keyboard)
+                # тут нужно проверять работу active_keyboard_status
                 await active_keyboard_status(user_id=user_id, 
                                     message_id=bot_answer.message_id, 
                                     status='active')
