@@ -2,7 +2,7 @@ from main import dp, bot
 from aiogram import types
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
 from message_handlers import cache, db, active_keyboard_status, quarry_definition_decorator, user_registration_decorator
-from keyboards import user_keyboard, moder_choose_question_keyboard, glavnoe_menu_keyboard
+from keyboards import user_keyboard, moder_choose_question_keyboard, glavnoe_menu_keyboard, enroll_keyboard
 from keyboards import generate_answer_keyboard, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
 from keyboards import Boltun_Step_Back, Boltun_Keys
 from chat_gpt_module import answer_information
@@ -36,7 +36,6 @@ async def process_glavnoe_menu(callback: types.CallbackQuery, state: FSMContext)
 
 @dp.callback_query_handler()
 async def callback_process(callback: types.CallbackQuery, state: FSMContext):
-
     callback_data = callback.data
 
     match callback_data:
@@ -142,6 +141,11 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
             await User_Panel.check.set()
             await callback.message.edit_text('Выберите способ для идентификации вас', 
                                             reply_markup=registration_keyboard)
+   
+        case 'enroll_check':
+            await User_Panel.check.set()
+            await callback.message.edit_text('Выберите способ проверки', 
+                                         reply_markup=enroll_keyboard)
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -196,61 +200,66 @@ async def program_checking(callback: types.CallbackQuery, state: FSMContext):
               'Гаврилина': '@logarithm_gvr', 'Шумилина': '@alina_417', 'Коробов': '@vlsue', 'Казакова': '@asya1710',
               'Дрожжина': '@kotyanya69', 'Деревянко': '@egor_der', 'Гусейнова': '@g_u_n_e_l_99', 'Буркова': '@burleti',
               'Веселов': '@bothat'}
+    callback_data = callback.data
     
-    if callback.data == 'link_fio':
-        bot_answer_1 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.fio.set()
-        await state.update_data(message_id=bot_answer_1.message_id,
-                                chats=chat_links,
-                                method='link')
-    elif callback.data == 'link_snils':
-        bot_answer_2 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.snils.set()
-        await state.update_data(message_id=bot_answer_2.message_id,
-                                chats=chat_links,
-                                method='link')
-    elif callback.data == 'program_fio':
-        bot_answer_3 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.fio.set()
-        await state.update_data(message_id=bot_answer_3.message_id,
-                                method='program')
-    elif callback.data == 'program_snils':
-        bot_answer_4 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.snils.set()
-        await state.update_data(message_id=bot_answer_4.message_id,
-                                method='program')
-    elif callback.data == 'tutor_fio':
-        bot_answer_5 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.fio.set()
-        await state.update_data(message_id=bot_answer_5.message_id,
-                                tutor=tutors,
-                                method='tutor')
-    elif callback.data == 'tutor_snils':
-        bot_answer_6 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.snils.set()
-        await state.update_data(message_id=bot_answer_6.message_id,
-                                tutor=tutors,
-                                method='tutor')
-    elif callback.data == 'registration_fio':
-        bot_answer_7 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.fio.set()
-        await state.update_data(message_id=bot_answer_7.message_id,
-                                tutor=tutors,
-                                method='registration')
-    elif callback.data == 'registration_snils':
-        bot_answer_8 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
-                                         reply_markup=glavnoe_menu_keyboard)
-        await User_Panel.snils.set()
-        await state.update_data(message_id=bot_answer_8.message_id,
-                                tutor=tutors,
-                                method='registration')
+    match callback_data:
+        case 'link_fio':
+            bot_answer_1 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.fio.set()
+            await state.update_data(message_id=bot_answer_1.message_id,
+                                    chats=chat_links, method='link')
+        case 'link_snils':
+            bot_answer_2 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.snils.set()
+            await state.update_data(message_id=bot_answer_2.message_id,
+                                    chats=chat_links, method='link')
+        case 'program_fio':
+            bot_answer_3 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.fio.set()
+            await state.update_data(message_id=bot_answer_3.message_id, method='program')
+        case 'program_snils':
+            bot_answer_4 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00',
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.snils.set()
+            await state.update_data(message_id=bot_answer_4.message_id, method='program')
+        case 'tutor_fio':
+            bot_answer_5 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.fio.set()
+            await state.update_data(message_id=bot_answer_5.message_id,
+                                    tutor=tutors, method='tutor')
+        case 'tutor_snils':
+            bot_answer_6 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.snils.set()
+            await state.update_data(message_id=bot_answer_6.message_id,
+                                    tutor=tutors,
+                                    method='tutor')
+        case 'registration_fio':
+            bot_answer_7 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.fio.set()
+            await state.update_data(message_id=bot_answer_7.message_id,
+                                    tutor=tutors, method='registration')
+        case 'registration_snils':
+            bot_answer_8 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.snils.set()
+            await state.update_data(message_id=bot_answer_8.message_id,
+                                    tutor=tutors, method='registration')
+        case 'enroll_fio':
+            bot_answer_9 = await callback.message.edit_text('Введите свое ФИО строго через пробел и ожидайте ответа', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.fio.set()
+            await state.update_data(message_id=bot_answer_9.message_id, method='enroll')
+        case 'enroll_snils':
+            bot_answer_10 = await callback.message.edit_text('Введите свой СНИЛС строго в формате 000-000-000 00', 
+                                            reply_markup=glavnoe_menu_keyboard)
+            await User_Panel.snils.set()
+            await state.update_data(message_id=bot_answer_10.message_id, method='enroll')
 
 #------------------------------------------MODER HANDLERS-----------------------------------------------
         
@@ -376,19 +385,24 @@ async def process_base_answers(callback: types.CallbackQuery, state: FSMContext)
 async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     announcement = data['announcement_text'] 
+    ids_to_send = set()
+    try:
+        if data['announcement_picture']:
+            announcement_picture = data['announcement_picture']
+    except KeyError:
+        pass
 
     announcement_copy = copy.copy(announcement) ; announcement_copy = f"""\n
                 ----------------I-N-F-O-B-L-O-C-K----------------
                 {announcement_copy}
                 ----------------I-N-F-O-B-L-O-C-K---------------- \n"""
-
-    ids_to_send = set()
-    # supergroup_ids = {'Общая информация по ДПП': -1001966706612,
-    #                   'Разработчик электронных медицинских сервисов': -1001944717245,
-    #                   'Специалист по анализу медицинских данных': -1001938691427,
-    #                   'DevOps': -1001910975819,
-    #                   'VR/AR разработчик': -1001983546737}
-    supergroup_ids = {'Тестовый чат': -4003002599}
+   
+    supergroup_ids = {'Общая информация по ДПП': -1001966706612,
+                      'Разработчик электронных медицинских сервисов': -1001944717245,
+                      'Специалист по анализу медицинских данных': -1001938691427,
+                      'DevOps': -1001910975819,
+                      'VR/AR разработчик': -1001983546737}
+    # supergroup_ids = {'Тестовый чат': -4003002599}
     blocked_bot_counter = 0
 
     async def private_sending(blocked_bot_counter=blocked_bot_counter):
@@ -402,10 +416,12 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             try:
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
-                bot_answer = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
-                await active_keyboard_status(user_id=id_to_send,
-                                             message_id=bot_answer.message_id,
-                                             status='active')
+                try:
+                    if announcement_picture:
+                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+                except UnboundLocalError:
+                    pass
+                await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
             except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
                 blocked_bot_counter += 1
                 continue
@@ -413,10 +429,12 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await asyncio.sleep(3)
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
-                bot_answer_2 = await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
-                await active_keyboard_status(user_id=id_to_send,
-                                             message_id=bot_answer_2.message_id,
-                                             status='active')
+                try:
+                    if announcement_picture:
+                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+                except UnboundLocalError:
+                    pass
+                await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
 
     async def group_sending():
         for name, supergroup in supergroup_ids.items():
@@ -444,10 +462,3 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
         await callback.message.edit_text(text=f'Объявление отправлено, вернитесь в главное меню.\nКоличество людей, заблокировавших бота: {blocked_bot_counter}', 
                                 reply_markup=glavnoe_menu_keyboard)
 
-#------------------------------------------ERROR HANDLERS-----------------------------------------------
-
-# @dp.errors_handler(exception=TelegramAPIError)
-# async def process_errors(update: types.Update, exception: exceptions):
-#     if isinstance(exception, exceptions.BotBlocked):
-#         await update.message.answer('Пользователь заблокировал бота,\nВернитесь в главное меню', 
-#                                     reply_markup=glavnoe_menu_keyboard)

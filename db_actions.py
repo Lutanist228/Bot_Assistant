@@ -34,15 +34,14 @@ class Database:
                                question_picture INTEGER)''')
             
             await conn.execute("""CREATE TABLE IF NOT EXISTS fuzzy_db (
-                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                message_id INTEGER,
-                quarry_date REAL NULL, 
-                question_text TEXT NULL,
-                reply_text TEXT NULL,
-                similarity_rate INTEGER DEFAULT 0,
-                reply_received TEXT NOT NULL DEFAULT 'FALSE'
-                )""")
+                                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                                user_id INTEGER NOT NULL,
+                                message_id INTEGER,
+                                quarry_date REAL NULL, 
+                                question_text TEXT NULL,
+                                reply_text TEXT NULL,
+                                similarity_rate INTEGER DEFAULT 0,
+                                reply_received TEXT NOT NULL DEFAULT 'FALSE')""")
             
             await conn.execute('''CREATE TABLE IF NOT EXISTS checked_ids (
                                id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +59,8 @@ class Database:
                                id INTEGER PRIMARY KEY AUTOINCREMENT,
                                team TEXT,
                                project TEXT,
-                               project_tag TEXT)''')
+                               project_tag TEXT,
+                               acception TEXT)''')
             
             await conn.execute('''CREATE TABLE IF NOT EXISTS analiz (
                                id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,6 +90,13 @@ class Database:
                                announcement TEXT DEFAULT NULL,
                                message TEXT DEFAULT NULL
                                )''')
+            await conn.execute('''CREATE TABLE IF NOT EXISTS fio_and_tg (
+                               id INTEGER PRIMARY KEY AUTOINCREMENT,
+                               user_id INTEGER,
+                               username TEXT,
+                               user_fullname TEXT,
+                               fio TEXT,
+                               program TEXT)''')
             
     async def create_infromation_about_moder(self):
         async with aiosqlite.connect('database.db') as conn:
@@ -268,7 +275,9 @@ class Database:
             result_1 = await cursor.fetchall()
         async with self.connection.execute('SELECT user_id FROM fuzzy_db') as cursor:
             result_2 = await cursor.fetchall()
-        return result_1 + result_2
+        async with self.connection.execute('SELECT user_id FROM fio_and_tg') as cursor:
+            result_3 = await cursor.fetchall()
+        return result_1 + result_2 + result_3
     
     async def add_checked_id(self, user_id: int, user_name: str):
         if self.connection is None:
@@ -329,3 +338,19 @@ class Database:
             async with self.connection.execute(f'''INSERT INTO raw_data (announcement, chat_type, chat_names) VALUES 
                                                (?, ?, ?)''', (data, chat_type, chat_names)):
                 await self.connection.commit()
+
+    async def add_to_checked_fio(self, user_id: int, username: str, user_fullname: str, fio: str, program: str):
+        if self.connection is None:
+            await self.create_connection()
+        username = 'https://t.me/' + username
+        async with self.connection.execute('INSERT INTO fio_and_tg (user_id, username, user_fullname, fio, program) VALUES (?, ?, ?, ?, ?)',
+                                           (user_id, username, user_fullname, fio, program)):
+            await self.connection.commit()
+
+    async def process_acception_option(self, project_tag: str):
+        if self.connection is None:
+            await self.create_connection()
+        async with self.connection.execute('SELECT acception FROM projects WHERE project_tag = ?', (project_tag,)) as cursor:
+            result = await cursor.fetchone()
+            return result
+        

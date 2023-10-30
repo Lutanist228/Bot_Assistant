@@ -103,7 +103,6 @@ async def create_inline_keyboard(rows):
     return questions_keyboard
 
 async def check_program(name: str, method_check: str):
-    programs = await cache.get('excel_data')
     enrolled_programs = await cache.get('enrolled_data')
     consortium_options = ['Да', 'Соглашение', 'СУ', 'Да?', 'да', 'ДА', 'да?', 'ДА?']
     status_options = ['Добавлена в телеграм', 'Проверена', 'Включена в список на зачисление', 
@@ -113,26 +112,30 @@ async def check_program(name: str, method_check: str):
     admission = {'VR Разработчик решений виртуальной и дополненной реальности в медицине': 'VR',
                  'Специалист по анализу медицинских данных': 'Анализ', 'Разработчик цифровых медицинских сервисов': 'Разработка',
                  'DevOps в медицине': 'DevOps'}
-    if method_check == 'fio':
-        full_name = name.split()
-        full_name = [word.capitalize() for word in full_name]
-        full_name = ' '.join(full_name)
-
-        data_to_check = programs.loc[(programs['ФИО'] == full_name) &
-                                    (programs['Консорциум'].isin(consortium_options)) &
-                                    (programs['Статус'].isin(status_options))]['Программа'].tolist()
-    elif method_check == 'snils':
+    if method_check == 'enroll_fio':
+        for sheet_name in enrolled_programs:
+            sheet = enrolled_programs[sheet_name]
+            data = sheet.loc[sheet['ФИО'].str.lower() == name.lower()]['ФИО'].tolist()
+            if len(data) == 0:
+                continue
+            else:
+                data.append(sheet_name)
+                found_data = data
+    elif method_check == 'enroll_snils':
         snils_pattern = re.compile(r'^\d{3}-\d{3}-\d{3} \d{2}$')
         if not snils_pattern.match(str(name)):
-            # Если ячейка не соответствует формату СНИЛСа, исправьте ее
-            cleaned_snils = re.sub(r'\D', '', str(name))  # Удаление всех нецифровых символов
+            cleaned_snils = re.sub(r'\D', '', str(name))
             formatted_snils = f'{cleaned_snils[:3]}-{cleaned_snils[3:6]}-{cleaned_snils[6:9]} {cleaned_snils[9:11]}'
-            name = formatted_snils  # Установка исправленного значения
+            name = formatted_snils
 
-        # Собираем СНИЛС с разделителями
-        data_to_check = programs.loc[(programs['СНИЛС'] == name) &
-                                    (programs['Консорциум'].isin(consortium_options)) &
-                                    (programs['Статус'].isin(status_options))]['Программа'].tolist()
+        for sheet_name in enrolled_programs:
+            sheet = enrolled_programs[sheet_name]
+            data = sheet.loc[sheet['СНИЛС'].str.lower() == name.lower()]['ФИО'].tolist()
+            if len(data) == 0:
+                continue
+            else:
+                data.append(sheet_name)
+                found_data = data
     elif method_check == 'link_fio':
         for sheet_name in enrolled_programs:
             sheet = enrolled_programs[sheet_name]
@@ -203,7 +206,7 @@ async def check_program(name: str, method_check: str):
         elif pd.isna(found_data[0]):
             return 'Нет в зачислении'
         else:
-            return found_data[0]
+            return found_data
     except (IndexError, UnboundLocalError):
         return 'Нет в зачислении'
     
@@ -224,24 +227,27 @@ async def process_connection_to_excel(status: str, row: int = None, worksheet_na
     except FileNotFoundError:
         gc = gspread.service_account(filename=r"C:\Users\user\Desktop\IT-Project\Bots\Bot_Assistant\other_file\files_for_server\google_key.json")
     sheet = gc.open_by_url(EXCEL_TABLE_PATH)
+    # Берем все названия листов таблицы
     worksheet_list = sheet.worksheets()
     if status == 'ФИО':
         online_table_process()
     elif status == 'СНИЛС':
         online_table_process()
     elif status == 'edit':
-        worksheet_for_team = sheet.worksheet('Проекты')
-        cell = worksheet_for_team.find(data[0][2])
+        # worksheet_for_team = sheet.worksheet('Проекты')
+        # cell = worksheet_for_team.find(data[0][2])
         worksheet = sheet.worksheet(worksheet_name)
         worksheet.update_cell(row=row, col=17, value=data[0][2])
         worksheet.update_cell(row=row, col=18, value=data[0][1])
         worksheet.update_cell(row=row, col=19, value=role)
     elif status == 'start':
+        # Получаем три столбца для сохранения в бд при запуске
         worksheet = sheet.worksheet('Проекты')
         team = worksheet.col_values(1)
         project = worksheet.col_values(2)
         tags = worksheet.col_values(3)
-        return team, project, tags
+        acception = worksheet.col_values(6)
+        return team, project, tags, acception
     
 def execution_count_decorator(func):
     """
@@ -260,3 +266,4 @@ def execution_count_decorator(func):
         return await func(*args, **kwargs)
     return async_wrapper
 
+        
