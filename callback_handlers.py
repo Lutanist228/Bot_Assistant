@@ -1,7 +1,7 @@
 from main import dp, bot
 from aiogram import types
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt, fuzzy_handler
-from message_handlers import cache, db, active_keyboard_status, quarry_definition_decorator, user_registration_decorator
+from message_handlers import cache, db, active_keyboard_status, user_registration_decorator
 from keyboards import user_keyboard, moder_choose_question_keyboard, glavnoe_menu_keyboard, enroll_keyboard
 from keyboards import generate_answer_keyboard, check_programm_keyboard, find_link_keyboard, tutor_keyboard, registration_keyboard
 from keyboards import Boltun_Step_Back, Boltun_Keys
@@ -397,15 +397,25 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 {announcement_copy}
                 ----------------I-N-F-O-B-L-O-C-K---------------- \n"""
    
-    supergroup_ids = {'Общая информация по ДПП': -1001966706612,
-                      'Разработчик электронных медицинских сервисов': -1001944717245,
-                      'Специалист по анализу медицинских данных': -1001938691427,
-                      'DevOps': -1001910975819,
-                      'VR/AR разработчик': -1001983546737}
-    # supergroup_ids = {'Тестовый чат': -4003002599}
+    # supergroup_ids = {'Общая информация по ДПП': -1001966706612,
+    #                   'Разработчик электронных медицинских сервисов': -1001944717245,
+    #                   'Специалист по анализу медицинских данных': -1001938691427,
+    #                   'DevOps': -1001910975819,
+    #                   'VR/AR разработчик': -1001983546737}
+    supergroup_ids = {'Тестовый чат': -4003002599}
     blocked_bot_counter = 0
 
     async def private_sending(blocked_bot_counter=blocked_bot_counter):
+        nonlocal announcement_picture
+
+        async def photo_sending():
+            nonlocal announcement_picture
+            try:
+                if announcement_picture:
+                    await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
+            except (UnboundLocalError, NameError):
+                pass
+
         ids = await db.get_ids_for_announcement() + await db.get_checked_ids()
         for id in ids:
             ids_to_send.add(id[0])
@@ -416,11 +426,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
             try:
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
-                try:
-                    if announcement_picture:
-                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
-                except UnboundLocalError:
-                    pass
+                await photo_sending()
                 await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
             except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
                 blocked_bot_counter += 1
@@ -429,11 +435,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await asyncio.sleep(3)
                 await bot.send_message(chat_id=id_to_send, text=f'<b>❗️❗️❗️Объявление:</b>\n\n{announcement}\n\n🔄<b>Если есть какие-то проблемы, то напишите</b> /start', 
                                                     parse_mode=types.ParseMode.HTML)
-                try:
-                    if announcement_picture:
-                        await bot.send_photo(chat_id=id_to_send, photo=announcement_picture)
-                except UnboundLocalError:
-                    pass
+                await photo_sending()
                 await bot.send_message(chat_id=id_to_send, text='Меню', reply_markup=glavnoe_menu_keyboard)
 
     async def group_sending():

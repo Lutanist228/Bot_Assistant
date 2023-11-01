@@ -1,161 +1,21 @@
-from aiogram import types, Dispatcher
+from aiogram import types
 from aiogram.dispatcher import FSMContext
-from aiogram.utils.exceptions import TelegramAPIError
+# from aiogram.utils.exceptions import TelegramAPIError
 from aiogram.utils import exceptions
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.types.message import ContentType as CT
 import json
-import asyncio
-from typing import Union
-from functools import wraps
 
 from db_actions import Database
 from main import dp, bot
 from keyboards import user_keyboard, moder_owner_start_keyboard, question_base_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
 from keyboards import announcement_keyboard
-from additional_functions import fuzzy_handler, check_program, process_connection_to_excel
+from additional_functions import *
 from keyboards import Boltun_Step_Back
 from cache_container import cache
 from config_file import BOLTUN_PATTERN
 from keyboards import Boltun_Keys
 from states import User_Panel, Moder_Panel, Registration
-from aiogram.types import ReplyKeyboardRemove 
-
-#------------------------------------------ADDITIONAL FUNCTIONS-----------------------------------------------
-
-async def active_keyboard_status(user_id: int, message_id: int, status: str):
-    # Получаем айди пользователя, айди сообщения, в котором хранится активная клавиатура. Создание пустой Inline клавиатуры
-    markup = InlineKeyboardMarkup()
-    # Создание кеш-хранилища под айди пользователя, где будут хранится все сообщения с клавами. Удаления этого хранилища еще
-    info = await cache.get(user_id)
-    await cache.delete(user_id)
-    # Прохождение по словарю с сообщениями и состояниями. Перевод всех сообщений до нового в неактивное состояние и редактировние клавы
-    if info:
-        for key, value in info.items():
-            if value == 'not active':
-                continue
-            elif value == 'active' and status == 'not active':
-                info[key] = status
-            elif value == 'active' and message_id != key:
-                value = 'not active'
-                info[key] = value
-                try:
-                    await bot.edit_message_reply_markup(chat_id=user_id, 
-                                                        message_id=key,
-                                                        reply_markup=markup)
-                except (exceptions.MessageToEditNotFound, exceptions.MessageNotModified):
-                    pass
-        # Добавление нового сообщения со статусом
-        info[message_id] = status
-        await cache.set(user_id, info)
-    else:
-        info = {}
-        info[message_id] = status
-        await cache.set(user_id, info)
-        # Очистка кеш хранилища через час, чтобы не нагружать сервак. По идее должно все работать
-        # await asyncio.sleep(3600)
-        # await cache.delete(user_id)
-
-async def process_timeout(time_for_sleep: int, chat_id: int, chat_type: str, message_id: int = None, state: FSMContext = None):
-    if chat_type == 'private':
-        # Таймаут на задачу вопроса и возврат пользователя если он так и не задал вопрос (проверяет по измению состояния)
-        await asyncio.sleep(time_for_sleep)
-        if await state.get_state() == 'User_Panel:boltun_question':
-            await state.finish()
-            bot_answer = await bot.send_message(chat_id=chat_id, 
-                                text='Вы превысили время на вопрос. Возвращаю вас обратно в меню',
-                                reply_markup=user_keyboard)
-            await active_keyboard_status(user_id=chat_id, 
-                message_id=bot_answer.message_id, 
-                status='active')
-        else:
-            return
-    elif chat_type == 'supergroup':
-        await asyncio.sleep(time_for_sleep)
-        await bot.delete_message(chat_id=chat_id,
-                                 message_id=message_id)
-
-# @dp.message_handler(content_types=[types.ContentType.VIDEO, types.ContentType.DOCUMENT])
-async def process_videos(message: types.Message):
-    print(message.video)
-    print(message.document)
-
-def quarry_definition_decorator(func):
-    """
-        Как работает этот декоратор:
-        1. С помощью оберточной функции и именованных аргументов, заключенных в **kwargs,
-        декоратор вычленяет значение переменных, что представляют собой изменяемые объекты 
-        в з-ти от типа запроса: переменная вычисления message_id, переменная вычисления user_id,
-        и другие
-        2. Внутри декоратора выполняется проверка на тип запроса и только затем 
-        вышеуказанные переменные меняются на те, что требует тот или иной тип запроса
-        3. После перезаписи возвращается принимаемая функция, но уже с перезаписанными 
-        переменными
-    """
-    @wraps(func) 
-    async def async_wrapper(quarry_type, state, **kwargs):             
-                if isinstance(quarry_type, types.Message) == True:
-                    kwargs.update({
-                        "chat_id": quarry_type.chat.id,
-                        "user_id": quarry_type.from_user.id,
-                        "chat_type": quarry_type.chat.type,
-                        "answer_type": quarry_type,
-                        "message_id": quarry_type.message_id,
-                        "edit_text": None
-                        })
-                elif isinstance(quarry_type, types.CallbackQuery) == True:
-                    kwargs.update({
-                        "chat_id": quarry_type.message.chat.id,
-                        "user_id": quarry_type.from_user.id,
-                        "chat_type": quarry_type.message.chat.type,
-                        "answer_type": quarry_type.message,
-                        "message_id": quarry_type.message.message_id,
-                        "edit_text": quarry_type.message.edit_text
-                        })
-                return await func(**kwargs) 
-    return async_wrapper    
-
-def user_registration_decorator(func):
-    """
-    Как работает этот декоратор:
-    1. Обертка принимает именованные аргументы, такие, что ответственны за идентификацию пользователей 
-    и засчет ветвления делегирует алгоритм в нужное русло.
-    2. Принимаемая функция при этом НЕ меняется, а лишь выступает в качестве источника информации,
-    а этот декоратор как бы - совокупность замков, ключи к которому - аргументы принимаемой функции.
-    """
-    async def async_wrapper(quarry_type, state, *args):
-        @quarry_definition_decorator
-        async def registration(chat_id, user_id, chat_type, answer_type, message_id, edit_text):
-
-            async def back_to_menu(key_type):
-                if isinstance(quarry_type, types.Message) == True:
-                    await answer_type.answer("Возврат в меню бота...", reply_markup=ReplyKeyboardRemove())
-                    return await bot.send_message(chat_id=chat_id, text='Можем приступить к работе', reply_markup=key_type)
-                else:
-                    return await edit_text(text='Можем приступить к работе', reply_markup=key_type)
-
-            await state.finish()
-            moder_ids = await db.get_moder()
-
-            for id in moder_ids:
-                if user_id == id[0]:
-                    if id[1] == 'Owner':
-                        await back_to_menu(moder_owner_start_keyboard) 
-                        return await func(quarry_type, state)
-                    else:
-                        await back_to_menu(common_moder_start_keyboard)
-                        return await func(quarry_type, state)
-            try:
-                bot_answer = await back_to_menu(user_keyboard)
-                # тут нужно проверять работу active_keyboard_status
-                await active_keyboard_status(user_id=user_id, 
-                                    message_id=bot_answer.message_id, 
-                                    status='active')
-                return await func(quarry_type, state)
-            except exceptions.MessageNotModified:
-                pass
-        return await registration(quarry_type, state)
-    return async_wrapper
 
 #------------------------------------------INIT BLOCK---------------------------------------------
 
@@ -662,7 +522,5 @@ async def process_announcement(message: types.Message, state: FSMContext):
     else:
         await state.update_data(announcement_text=announcement)
     await message.answer('Выберите тип публикации', reply_markup=announcement_keyboard)
-
-#------------------------------------------ERROR HANDLERS-----------------------------------------------
 
 

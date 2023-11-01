@@ -1,7 +1,5 @@
 import aiosqlite
 
-from additional_functions import process_connection_to_excel, execution_count_decorator
-
 class Database:
     def __init__(self):
         self.connection = None
@@ -314,6 +312,8 @@ class Database:
             await self.connection.commit()
 
     async def start_project_information(self):
+        from additional_functions import process_connection_to_excel, execution_count_decorator
+
         @execution_count_decorator
         async def selecting_programms(resulted_list: list, iter_num: int, exeption_raised: bool):
                 await self.connection.execute(f'''INSERT INTO projects (team, project, project_tag)
