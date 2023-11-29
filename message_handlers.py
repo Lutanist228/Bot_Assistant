@@ -518,7 +518,9 @@ async def process_getting_tag(message: types.Message, state: FSMContext):
     row_num = data['row']
     worksheet_name = data['worksheet']
     acception = await db.process_acception_option(project_tag=message.text)
-    if acception[0] == 'Нет':
+    if acception is None:
+        await message.answer('Проверьте написание хэштега. Вы допустили где-то ошибку')
+    elif acception[0] == 'Нет':
         await message.answer('Запись на этот проект недоступна. Введи другой хэштег.')
     else:
         result = await db.get_project(project_tag=message.text)

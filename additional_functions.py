@@ -7,6 +7,7 @@ import json
 import re
 import pandas as pd
 import gspread
+import asyncio
 
 def file_reader(file_path: str):
     with open(file=file_path, mode='r', buffering=-1, encoding="utf-8") as file:
@@ -243,3 +244,16 @@ async def process_connection_to_excel(status: str, row: int = None, worksheet_na
         tags = worksheet.col_values(3)
         acception = worksheet.col_values(6)
         return team, project, tags, acception
+
+async def extract_updated_information():
+    from config_file import SERVICE_ACCOUNT_PATH, EXCEL_TABLE_PATH
+    from main import db
+    await asyncio.sleep(60)
+    gc = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
+    sheet = gc.open_by_url(EXCEL_TABLE_PATH)
+    worksheet = sheet.worksheet('Проекты')
+    team = worksheet.col_values(1)
+    project = worksheet.col_values(2)
+    tags = worksheet.col_values(3)
+    acception = worksheet.col_values(6)
+    await db.process_updating_information(team=team, project=project, tags=tags, acception=acception)

@@ -1,7 +1,7 @@
 from main import dp, bot
 from aiogram import types
 from keyboards import Boltun_Step_Back, Boltun_Keys
-from additional_functions import fuzzy_handler
+from additional_functions import fuzzy_handler, extract_updated_information
 from additional_functions import create_inline_keyboard, file_reader, save_to_txt
 from message_handlers import Global_Data_Storage, cache, db, active_keyboard_status
 from keyboards import user_keyboard, moder_choose_question_keyboard, moder_owner_start_keyboard, glavnoe_menu_keyboard, common_moder_start_keyboard
@@ -158,6 +158,8 @@ async def callback_process(callback: types.CallbackQuery, state: FSMContext):
         await User_Panel.check.set()
         await callback.message.edit_text('Выберите способ проверки', 
                                          reply_markup=enroll_keyboard)
+    elif callback.data == 'start_update':
+        await extract_updated_information()
 
 #------------------------------------------USER HANDLERS------------------------------------------------
 
@@ -430,7 +432,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots, exceptions.UserDeactivated):
                 blocked_bot_counter += 1
                 continue
             except (exceptions.RetryAfter):
@@ -479,7 +481,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots):
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots, exceptions.UserDeactivated):
                 blocked_bot_counter += 1
                 continue
             except (exceptions.RetryAfter):

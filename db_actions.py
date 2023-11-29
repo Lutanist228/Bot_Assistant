@@ -312,10 +312,10 @@ class Database:
             if i == 0:
                 continue
             async with self.connection.execute(f'''INSERT INTO projects (team, project, project_tag, acception)
-                SELECT '{result[0][i]}', '{result[1][i]}', '{result[2][i]}', '{result[3][i]}'
+                SELECT '{result[0][i]}', '{result[1][i]}', '{result[2][i].strip()}', '{result[3][i]}'
                 WHERE NOT EXISTS (
                     SELECT 1 FROM projects 
-                    WHERE team = '{result[0][i]}' AND project = '{result[1][i]}' AND project_tag = '{result[2][i]}' AND acception = '{result[3][i]}'
+                    WHERE team = '{result[0][i]}' AND project = '{result[1][i]}' AND project_tag = '{result[2][i].strip()}' AND acception = '{result[3][i]}'
                 );
                 '''):
                 await self.connection.commit()
@@ -323,7 +323,10 @@ class Database:
     async def add_to_checked_fio(self, user_id: int, username: str, user_fullname: str, fio: str, program: str):
         if self.connection is None:
             await self.create_connection()
-        username = 'https://t.me/' + username
+        try:
+            username = 'https://t.me/' + username
+        except TypeError:
+            pass
         async with self.connection.execute('INSERT INTO fio_and_tg (user_id, username, user_fullname, fio, program) VALUES (?, ?, ?, ?, ?)',
                                            (user_id, username, user_fullname, fio, program)):
             await self.connection.commit()
@@ -335,3 +338,19 @@ class Database:
             result = await cursor.fetchone()
             return result
         
+
+    async def process_updating_information(self, team, project, tags, acception):
+        from additional_functions import extract_updated_information
+        if self.connection is None:
+            await self.create_connection()
+        for i in range(len(team)):
+            async with self.connection.execute('SELECT * FROM projects WHERE team = ? AND project = ?', (team[i], project[i])) as cursor:
+                row = await cursor.fetchone()
+                if row is None:
+                    await self.connection.execute('INSERT INTO projects (team, project, project_tag, acception) VALUES (?, ?, ?, ?)', (team[i], project[i], tags[i], acception[i]))
+                else:
+                    await self.connection.execute('UPDATE projects SET project_tag = ?, acception = ? WHERE team = ? AND project = ?', (tags[i], acception[i], team[i], project[i]))
+            await self.connection.commit()
+
+
+        await extract_updated_information()
