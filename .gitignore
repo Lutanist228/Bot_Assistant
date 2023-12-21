@@ -16,3 +16,5 @@ test_for_excel.py
 google_key.json
 *.docx
 information.txt
+venv
+/__pycache__
