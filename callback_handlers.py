@@ -432,7 +432,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots, exceptions.UserDeactivated):
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots, exceptions.UserDeactivated, exceptions.Unauthorized):
                 blocked_bot_counter += 1
                 continue
             except (exceptions.RetryAfter):
@@ -481,7 +481,7 @@ async def proccess_type_of_announcement(callback: types.CallbackQuery, state: FS
                 await active_keyboard_status(user_id=id_to_send,
                                              message_id=bot_answer.message_id,
                                              status='active')
-            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots, exceptions.UserDeactivated):
+            except (exceptions.BotBlocked, exceptions.ChatNotFound, exceptions.CantInitiateConversation, exceptions.CantTalkWithBots, exceptions.UserDeactivated, exceptions.Unauthorized):
                 blocked_bot_counter += 1
                 continue
             except (exceptions.RetryAfter):
