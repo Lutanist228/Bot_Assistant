@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    {% load static %}
+    {% load django_bootstrap5 %}
+    <meta charset="utf-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% bootstrap_css %}
+    <title>
+      {% block title %}{% endblock %}
+    </title>
+  </head>
+  <body>
+    {% include "includes/header.html" %}
+    <main class="pt-5 my-5">
+      <div class="container">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+    {% include "includes/footer.html" %}   
+  </body>
+  <script src="{% static 'js/jquery-3.2.1.slim.min.js' %}"></script>
+  <script src="{% static 'js/bootstrap.min.js' %}"></script>
+</html>
